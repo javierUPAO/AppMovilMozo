@@ -8,4 +8,6 @@ data class AuthResponse(
     @SerializedName("name") val name: String,
     @SerializedName("dni") val dni: String,
     @SerializedName("role") val role: String
+
+    //./gradlew --stop
 )
