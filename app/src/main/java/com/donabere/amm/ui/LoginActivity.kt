@@ -19,17 +19,22 @@ class LoginActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         binding.btnIngresar.setOnClickListener {
-            val usuario = binding.etUsuario.text.toString()
+            val email = binding.etUsuario.text.toString()
             val contrasena = binding.etContrasena.text.toString()
-            viewModel.login(usuario, contrasena)
+            binding.tvError.visibility = View.GONE
+            viewModel.login(email, contrasena)
         }
 
         viewModel.loginExitoso.observe(this) { exitoso ->
             if (exitoso) {
-                // Navegar a la siguiente pantalla (mapa de mesas)
-                // startActivity(Intent(this, MesasActivity::class.java))
-                // finish()
+                startActivity(Intent(this, MesasActivity::class.java))
+                finish()
             }
+        }
+
+        viewModel.isLoading.observe(this) { loading ->
+            binding.progressBar.visibility = if (loading) View.VISIBLE else View.GONE
+            binding.btnIngresar.isEnabled = !loading
         }
 
         viewModel.error.observe(this) { mensaje ->
