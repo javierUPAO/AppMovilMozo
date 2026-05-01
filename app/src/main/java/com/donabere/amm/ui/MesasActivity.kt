@@ -24,6 +24,23 @@ class MesasActivity : AppCompatActivity() {
         observeViewModel()
 
         viewModel.fetchMesas()
+
+        setSupportActionBar(binding.toolbar)
+    }
+
+    override fun onCreateOptionsMenu(menu: android.view.Menu?): Boolean {
+        menuInflater.inflate(com.donabere.amm.R.menu.menu_mesas, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: android.view.MenuItem): Boolean {
+        return when (item.itemId) {
+            com.donabere.amm.R.id.action_ver_menu -> {
+                startActivity(android.content.Intent(this, com.donabere.amm.MenuActivity::class.java))
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
     }
 
     private fun setupRecyclerView() {
