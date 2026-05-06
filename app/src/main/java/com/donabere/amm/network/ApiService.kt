@@ -1,7 +1,7 @@
 package com.donabere.amm.network
 
-import com.donabere.amm.model.AuthResponse
-import com.donabere.amm.model.LoginRequest
+import com.donabere.amm.model.response.AuthResponse
+import com.donabere.amm.model.request.LoginRequest
 import com.donabere.amm.model.Mesa
 import retrofit2.Response
 import retrofit2.http.Body

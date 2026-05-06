@@ -1,4 +1,4 @@
-package com.donabere.amm.model
+package com.donabere.amm.model.request
 
 import com.google.gson.annotations.SerializedName
 

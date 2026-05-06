@@ -1,7 +1,7 @@
 package com.donabere.amm.repository
 
-import com.donabere.amm.model.AuthResponse
-import com.donabere.amm.model.LoginRequest
+import com.donabere.amm.model.response.AuthResponse
+import com.donabere.amm.model.request.LoginRequest
 import com.donabere.amm.network.ApiService
 
 class AuthRepository(private val apiService: ApiService) {

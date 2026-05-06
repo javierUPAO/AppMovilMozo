@@ -5,7 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
-import com.donabere.amm.model.LoginRequest
+import com.donabere.amm.model.request.LoginRequest
 import com.donabere.amm.network.RetrofitClient
 import com.donabere.amm.repository.AuthRepository
 import com.donabere.amm.utils.TokenManager
