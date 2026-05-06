@@ -2,19 +2,17 @@ package com.donabere.amm.ui.adapter
 
 import android.graphics.Color
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.donabere.amm.R
 import com.donabere.amm.databinding.ItemMesaBinding
-import com.donabere.amm.model.Mesa
+import com.donabere.amm.model.response.MesaResponse
 
 class ItemMesaAdapter : RecyclerView.Adapter<ItemMesaAdapter.MesaViewHolder>() {
 
-    private var mesasList = listOf<Mesa>()
+    private var mesasList = listOf<MesaResponse>()
 
-    fun submitList(mesas: List<Mesa>) {
-        mesasList = mesas
+    fun submitList(mesaResponses: List<MesaResponse>) {
+        mesasList = mesaResponses
         notifyDataSetChanged()
     }
 
@@ -30,13 +28,13 @@ class ItemMesaAdapter : RecyclerView.Adapter<ItemMesaAdapter.MesaViewHolder>() {
     override fun getItemCount(): Int = mesasList.size
 
     inner class MesaViewHolder(private val binding: ItemMesaBinding) : RecyclerView.ViewHolder(binding.root) {
-        fun bind(mesa: Mesa) {
-            binding.tvIdMesa.text = "Mesa ${mesa.id}"
-            binding.tvCapacidad.text = "Capacidad: ${mesa.capacity} personas"
-            binding.tvPrecio.text = "$${mesa.price}"
+        fun bind(mesaResponse: MesaResponse) {
+            binding.tvIdMesa.text = "Mesa ${mesaResponse.id}"
+            binding.tvCapacidad.text = "Capacidad: ${mesaResponse.capacity} personas"
+            binding.tvPrecio.text = "$${mesaResponse.price}"
 
             // Supongamos que status 0 = Disponible, 1 = Ocupada (según validación backend)
-            if (mesa.status == 0) {
+            if (mesaResponse.status == 0) {
                 binding.tvEstado.text = "Disponible"
                 binding.tvEstado.setTextColor(Color.parseColor("#388E3C")) // Verde
                 binding.ivIconoMesa.setColorFilter(Color.parseColor("#388E3C"))

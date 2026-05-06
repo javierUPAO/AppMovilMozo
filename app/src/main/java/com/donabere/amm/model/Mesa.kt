@@ -1,10 +1,10 @@
 package com.donabere.amm.model
 
-import com.google.gson.annotations.SerializedName
+import com.donabere.amm.model.enums.EstadoMesa
 
 data class Mesa(
-    @SerializedName("id") val id: Int,
-    @SerializedName("capacity") val capacity: Int,
-    @SerializedName("status") val status: Int,
-    @SerializedName("price") val price: Double
+    val id: Int,
+    val estado: EstadoMesa,
+    val numClientes: Int
 )
+

@@ -1,11 +1,11 @@
 package com.donabere.amm.repository
 
-import com.donabere.amm.model.Mesa
+import com.donabere.amm.model.response.MesaResponse
 import com.donabere.amm.network.ApiService
 
 class MesasRepository(private val apiService: ApiService) {
 
-    suspend fun getMesas(): Result<List<Mesa>> {
+    suspend fun getMesas(): Result<List<MesaResponse>> {
         return try {
             val response = apiService.obtenerMesas()
             if (response.isSuccessful) {

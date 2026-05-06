@@ -2,7 +2,7 @@ package com.donabere.amm.network
 
 import com.donabere.amm.model.response.AuthResponse
 import com.donabere.amm.model.request.LoginRequest
-import com.donabere.amm.model.Mesa
+import com.donabere.amm.model.response.MesaResponse
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -10,7 +10,7 @@ import retrofit2.http.POST
 
 interface ApiService {
     @GET("api/v1/admin/mesas")
-    suspend fun obtenerMesas(): Response<List<Mesa>>
+    suspend fun obtenerMesas(): Response<List<MesaResponse>>
 
     @POST("api/v1/auth/login")
     suspend fun login(@Body request: LoginRequest): Response<AuthResponse>
