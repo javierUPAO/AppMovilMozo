@@ -1,0 +1,65 @@
+package com.donabere.amm.ui.fragment
+
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.Toast
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.donabere.amm.adapter.MenuAdapter
+import com.donabere.amm.databinding.FragmentPlatosBinding
+import com.donabere.amm.viewmodel.MenuViewModel
+
+class PlatosFragment : Fragment() {
+
+    private var _binding: FragmentPlatosBinding? = null
+    private val binding get() = _binding!!
+    
+    private val viewModel: MenuViewModel by viewModels()
+    private lateinit var adapter: MenuAdapter
+
+    override fun onCreateView(
+        inflater: LayoutInflater, container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        _binding = FragmentPlatosBinding.inflate(inflater, container, false)
+        return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        
+        setupRecyclerView()
+        observeViewModel()
+        viewModel.cargarMenu()
+    }
+
+    private fun setupRecyclerView() {
+        adapter = MenuAdapter(emptyList()) { dish ->
+            Toast.makeText(requireContext(), "Plato seleccionado: ${dish.title}", Toast.LENGTH_SHORT).show()
+        }
+        binding.rvMenu.layoutManager = LinearLayoutManager(requireContext())
+        binding.rvMenu.adapter = adapter
+    }
+
+    private fun observeViewModel() {
+        viewModel.menu.observe(viewLifecycleOwner) { dishes ->
+            adapter.updateData(dishes)
+        }
+        viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
+            binding.pbMenuLoading.visibility = if (isLoading) View.VISIBLE else View.GONE
+        }
+        viewModel.error.observe(viewLifecycleOwner) { errorMessage ->
+            if (errorMessage.isNotEmpty()) {
+                Toast.makeText(requireContext(), errorMessage, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
+    }
+}
