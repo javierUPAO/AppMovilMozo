@@ -1,5 +1,7 @@
 package com.donabere.amm.network
 
+import com.donabere.amm.model.Dish
+import com.donabere.amm.model.Bebida
 import com.donabere.amm.model.response.AuthResponse
 import com.donabere.amm.model.request.LoginRequest
 import com.donabere.amm.model.response.MesaResponse
@@ -12,9 +14,12 @@ interface ApiService {
     @GET("api/v1/admin/mesas")
     suspend fun obtenerMesas(): Response<List<MesaResponse>>
 
-    @POST("api/v1/auth/login")
+    @POST("auth/login")
     suspend fun login(@Body request: LoginRequest): Response<AuthResponse>
+    
+    @GET("reservasion/dia/mesas/menu") 
+    suspend fun obtenerMenu(): Response<List<Dish>>
 
-    @GET("api/v1/reservasion/dia/mesas/menu")
-    suspend fun obtenerMenu(): Response<List<com.donabere.amm.model.Dish>>
+    @GET("admin/drink/all") 
+    suspend fun obtenerBebidas(): Response<List<Bebida>>
 }
