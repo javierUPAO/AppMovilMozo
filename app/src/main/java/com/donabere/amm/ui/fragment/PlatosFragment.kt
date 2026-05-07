@@ -7,7 +7,7 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.GridLayoutManager
 import com.donabere.amm.adapter.MenuAdapter
 import com.donabere.amm.databinding.FragmentPlatosBinding
 import com.donabere.amm.viewmodel.MenuViewModel
@@ -37,10 +37,8 @@ class PlatosFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        adapter = MenuAdapter(emptyList()) { dish ->
-            Toast.makeText(requireContext(), "Plato seleccionado: ${dish.title}", Toast.LENGTH_SHORT).show()
-        }
-        binding.rvMenu.layoutManager = LinearLayoutManager(requireContext())
+        adapter = MenuAdapter(emptyList()) { }
+        binding.rvMenu.layoutManager = GridLayoutManager(requireContext(), 2)
         binding.rvMenu.adapter = adapter
     }
 
