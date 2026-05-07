@@ -1,7 +1,10 @@
+<!-- res/values-night/themes.xml -->
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
     <style name="Base.Theme.Amm" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your dark theme here. -->
-        <!-- <item name="colorPrimary">@color/my_dark_primary</item> -->
+        <!-- Dark theme customization -->
+        <item name="android:statusBarColor">#F59E0B</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
+
+    <style name="Theme.Amm" parent="Base.Theme.Amm" />
 </resources>

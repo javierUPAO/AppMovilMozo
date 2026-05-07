@@ -27,7 +27,7 @@ class LoginActivity : AppCompatActivity() {
 
         viewModel.loginExitoso.observe(this) { exitoso ->
             if (exitoso) {
-                startActivity(Intent(this, MesasActivity::class.java))
+                startActivity(Intent(this, MainActivity::class.java))
                 finish()
             }
         }

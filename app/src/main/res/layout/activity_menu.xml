@@ -3,18 +3,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="#F5F5F5"
     android:orientation="vertical">
-
-    <TextView
-        android:id="@+id/tvMenuHeader"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Menú del Restaurante"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:layout_marginTop="16dp"
-        android:layout_marginBottom="8dp" />
 
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/tabLayoutCategorias"
@@ -26,6 +16,7 @@
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/viewPagerPlatos"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="0dp"
+        android:layout_weight="1" />
 
 </LinearLayout>
