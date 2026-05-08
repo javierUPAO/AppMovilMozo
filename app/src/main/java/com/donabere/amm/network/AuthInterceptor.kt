@@ -10,7 +10,7 @@ class AuthInterceptor(private val tokenManager: TokenManager) : Interceptor {
         val token = tokenManager.getToken()
         
         // Si no hay token o la petición es de login, pasa la petición sin cambios
-        if (token.isNullOrEmpty() || originalRequest.url().encodedPath().contains("/auth/login")) {
+        if (token.isNullOrEmpty() || originalRequest.url.encodedPath.contains("/auth/login")) {
             return chain.proceed(originalRequest)
         }
 

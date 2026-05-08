@@ -7,7 +7,7 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.GridLayoutManager
 import com.donabere.amm.adapter.BebidasAdapter
 import com.donabere.amm.databinding.FragmentBebidasBinding
 import com.donabere.amm.viewmodel.BebidasViewModel
@@ -37,10 +37,8 @@ class BebidasFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        adapter = BebidasAdapter(emptyList()) { bebida ->
-            Toast.makeText(requireContext(), "Bebida seleccionada: ${bebida.name}", Toast.LENGTH_SHORT).show()
-        }
-        binding.rvBebidas.layoutManager = LinearLayoutManager(requireContext())
+        adapter = BebidasAdapter(emptyList()) { }
+        binding.rvBebidas.layoutManager = GridLayoutManager(requireContext(), 2)
         binding.rvBebidas.adapter = adapter
     }
 

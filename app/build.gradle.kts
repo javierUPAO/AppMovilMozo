@@ -81,4 +81,6 @@ dependencies {
 
     // Serialization
     implementation("org.json:json:20230227")
+    // Image loading
+    implementation("io.coil-kt:coil:2.6.0")
 }
