@@ -69,6 +69,16 @@
         android:backgroundTint="#E94560"
         android:layout_marginBottom="16dp"/>
 
+    <Button
+        android:id="@+id/btnIngresarHuella"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="🔐 Ingresar con Huella"
+        android:textSize="16sp"
+        android:backgroundTint="#16A34A"
+        android:layout_marginBottom="24dp"
+        android:visibility="gone"/>
+
     <ProgressBar
         android:id="@+id/progressBar"
         android:layout_width="wrap_content"
