@@ -67,6 +67,20 @@ dependencies {
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
 
+    // Biometric
+    implementation("androidx.biometric:biometric:1.1.0")
+
+    // JWT
+    implementation("com.auth0:java-jwt:4.4.0")
+    implementation("io.jsonwebtoken:jjwt-api:0.12.3")
+    runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.3")
+    runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.3")
+
+    // Bouncy Castle para RSA
+    implementation("org.bouncycastle:bcprov-jdk15on:1.70")
+
+    // Serialization
+    implementation("org.json:json:20230227")
     // Image loading
     implementation("io.coil-kt:coil:2.6.0")
 }
