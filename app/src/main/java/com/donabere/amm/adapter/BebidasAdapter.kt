@@ -4,11 +4,14 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.RecyclerView
+import coil.load
 import com.donabere.amm.R
 import com.donabere.amm.model.Bebida
+import com.donabere.amm.utils.ImageUrlResolver
 
 class BebidasAdapter(
     private var bebidas: List<Bebida>,
@@ -16,6 +19,7 @@ class BebidasAdapter(
 ) : RecyclerView.Adapter<BebidasAdapter.BebidaViewHolder>() {
 
     class BebidaViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val ivDishImage: ImageView = itemView.findViewById(R.id.ivDishImage)
         val tvDishTitle: TextView = itemView.findViewById(R.id.tvDishTitle)
         val tvDishPrice: TextView = itemView.findViewById(R.id.tvDishPrice)
         val tvDishDescription: TextView = itemView.findViewById(R.id.tvDishDescription)
@@ -34,14 +38,23 @@ class BebidasAdapter(
         holder.tvDishTitle.text = bebida.name
         holder.tvDishPrice.text = "S/ ${bebida.price}"
         holder.tvDishDescription.text = bebida.description
-
-        holder.tvDishStock.visibility = View.GONE
-        holder.flOutStockOverlay.visibility = View.GONE
-        holder.clDishContainer.alpha = 1.0f
-        holder.itemView.setOnClickListener {
-            onBebidaClick(bebida)
+        holder.tvDishStock.text = "Stock: ${bebida.stock}"
+        val imageUrl = ImageUrlResolver.resolve(holder.itemView.context, bebida.image)
+        holder.ivDishImage.load(imageUrl) {
+            crossfade(true)
         }
-        holder.itemView.isClickable = true
+
+        if (bebida.stock <= 0) {
+            holder.flOutStockOverlay.visibility = View.VISIBLE
+            holder.itemView.setOnClickListener(null)
+            holder.itemView.isClickable = false
+        } else {
+            holder.flOutStockOverlay.visibility = View.GONE
+            holder.itemView.setOnClickListener {
+                onBebidaClick(bebida)
+            }
+            holder.itemView.isClickable = true
+        }
     }
 
     override fun getItemCount(): Int = bebidas.size

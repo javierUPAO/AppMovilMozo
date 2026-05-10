@@ -8,6 +8,7 @@ import android.widget.Toast
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.donabere.amm.adapter.MenuAdapter
 import com.donabere.amm.databinding.FragmentPlatosBinding
@@ -18,7 +19,7 @@ class PlatosFragment : Fragment() {
 
     private var _binding: FragmentPlatosBinding? = null
     private val binding get() = _binding!!
-
+    
     private val viewModel: MenuViewModel by viewModels()
     private lateinit var adapter: MenuAdapter
 
@@ -32,6 +33,7 @@ class PlatosFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        
         setupRecyclerView()
         observeViewModel()
         viewModel.cargarMenu()
@@ -54,7 +56,7 @@ class PlatosFragment : Fragment() {
                 Toast.makeText(requireContext(), "Plato seleccionado: ${dish.title}", Toast.LENGTH_SHORT).show()
             }
         }
-        binding.rvMenu.layoutManager = LinearLayoutManager(requireContext())
+        binding.rvMenu.layoutManager = GridLayoutManager(requireContext(), 2)
         binding.rvMenu.adapter = adapter
     }
 

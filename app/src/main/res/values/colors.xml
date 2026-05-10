@@ -9,4 +9,8 @@
     <color name="divider_color">#BDBDBD</color>
     <color name="error_color">#B71C1C</color>
     <color name="warning_color">#F57F17</color>
+    <color name="orange_primary">#F59E0B</color>
+    <color name="orange_dark">#8F5C06</color>
+    <color name="orange_primary_20">#33F59E0B</color>
+    <color name="colorSecondaryContainer">@android:color/transparent</color>
 </resources>
