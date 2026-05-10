@@ -51,7 +51,7 @@ class LoginActivity : AppCompatActivity() {
                 binding.tvError.text = "Ingresa tu email primero"
                 return@setOnClickListener
             }
-            
+
             // Mostrar el prompt biométrico
             BiometricUtils.showBiometricPrompt(
                 this,

@@ -8,6 +8,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.donabere.amm.databinding.ActivityMesasBinding
+import com.donabere.amm.ui.CrearPedidoActivity
 import com.donabere.amm.ui.adapter.ItemMesaAdapter
 import com.donabere.amm.viewmodel.MesasViewModel
 
@@ -17,7 +18,23 @@ class MesasFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val viewModel: MesasViewModel by viewModels()
-    private val adapter = ItemMesaAdapter()
+    private val adapter = ItemMesaAdapter { mesa ->
+        if (mesa.status == 0) {
+            startActivity(
+                CrearPedidoActivity.newIntent(
+                    context  = requireContext(),
+                    mesasIds = listOf(mesa.id),
+                    mozoId   = 1 // temporal
+                )
+            )
+        } else {
+            android.widget.Toast.makeText(
+                requireContext(),
+                "Mesa ${mesa.id} está ocupada",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
