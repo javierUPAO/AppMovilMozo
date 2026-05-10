@@ -5,18 +5,20 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.donabere.amm.adapter.MenuAdapter
 import com.donabere.amm.databinding.FragmentPlatosBinding
+import com.donabere.amm.ui.SeleccionProductoActivity
 import com.donabere.amm.viewmodel.MenuViewModel
 
 class PlatosFragment : Fragment() {
 
     private var _binding: FragmentPlatosBinding? = null
     private val binding get() = _binding!!
-    
+
     private val viewModel: MenuViewModel by viewModels()
     private lateinit var adapter: MenuAdapter
 
@@ -30,7 +32,6 @@ class PlatosFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        
         setupRecyclerView()
         observeViewModel()
         viewModel.cargarMenu()
@@ -38,7 +39,20 @@ class PlatosFragment : Fragment() {
 
     private fun setupRecyclerView() {
         adapter = MenuAdapter(emptyList()) { dish ->
-            Toast.makeText(requireContext(), "Plato seleccionado: ${dish.title}", Toast.LENGTH_SHORT).show()
+            // Si viene de SeleccionProductoActivity → devolver resultado
+            if (activity is SeleccionProductoActivity) {
+                parentFragmentManager.setFragmentResult(
+                    SeleccionProductoActivity.RESULT_PLATO,
+                    bundleOf(
+                        SeleccionProductoActivity.EXTRA_PRODUCTO_ID     to dish.id,
+                        SeleccionProductoActivity.EXTRA_PRODUCTO_NOMBRE to dish.title,
+                        SeleccionProductoActivity.EXTRA_PRODUCTO_PRECIO to dish.price
+                    )
+                )
+            } else {
+                // Comportamiento original en MenuActivity → solo Toast
+                Toast.makeText(requireContext(), "Plato seleccionado: ${dish.title}", Toast.LENGTH_SHORT).show()
+            }
         }
         binding.rvMenu.layoutManager = LinearLayoutManager(requireContext())
         binding.rvMenu.adapter = adapter

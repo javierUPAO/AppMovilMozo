@@ -23,6 +23,12 @@
         </activity>
         <activity android:name=".ui.MesasActivity" />
         <activity android:name=".MenuActivity" />
+        <activity
+                android:name=".ui.CrearPedidoActivity"
+                android:screenOrientation="portrait"
+                android:exported="false" />
+        <activity android:name=".ui.SeleccionProductoActivity"
+                android:exported="false" />
     </application>
 
 </manifest>

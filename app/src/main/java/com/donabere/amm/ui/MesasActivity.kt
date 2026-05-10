@@ -13,7 +13,25 @@ class MesasActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMesasBinding
     private val viewModel: MesasViewModel by viewModels()
-    private val adapter = ItemMesaAdapter()
+    private val adapter = ItemMesaAdapter { mesa ->
+        // Solo permitir entrar a mesas disponibles (status == 0)
+        if (mesa.status == 0) {
+            startActivity(
+                CrearPedidoActivity.newIntent(
+                    context  = this,
+                    mesasIds = listOf(mesa.id),
+                    mozoId   = 1 // temporal hasta que login pase el mozoId real
+                )
+            )
+        } else {
+            // Mesa ocupada — mostrar mensaje
+            android.widget.Toast.makeText(
+                this,
+                "Mesa ${mesa.id} está ocupada",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

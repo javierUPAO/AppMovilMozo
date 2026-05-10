@@ -11,7 +11,7 @@ import retrofit2.http.GET
 import retrofit2.http.POST
 
 interface ApiService {
-    @GET("api/v1/admin/mesas")
+    @GET("admin/mesas")
     suspend fun obtenerMesas(): Response<List<MesaResponse>>
 
     @POST("auth/login")
