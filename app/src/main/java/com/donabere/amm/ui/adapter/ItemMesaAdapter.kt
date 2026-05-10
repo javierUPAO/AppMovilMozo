@@ -7,7 +7,9 @@ import androidx.recyclerview.widget.RecyclerView
 import com.donabere.amm.databinding.ItemMesaBinding
 import com.donabere.amm.model.response.MesaResponse
 
-class ItemMesaAdapter : RecyclerView.Adapter<ItemMesaAdapter.MesaViewHolder>() {
+class ItemMesaAdapter(
+    private val onMesaClick: (MesaResponse) -> Unit
+) : RecyclerView.Adapter<ItemMesaAdapter.MesaViewHolder>() {
 
     private var mesasList = listOf<MesaResponse>()
 
@@ -43,6 +45,11 @@ class ItemMesaAdapter : RecyclerView.Adapter<ItemMesaAdapter.MesaViewHolder>() {
                 binding.tvEstado.setTextColor(Color.parseColor("#D32F2F")) // Rojo
                 binding.ivIconoMesa.setColorFilter(Color.parseColor("#D32F2F"))
             }
+
+            binding.root.setOnClickListener {
+                onMesaClick(mesaResponse)
+            }
         }
+
     }
 }

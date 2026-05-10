@@ -2,6 +2,13 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="background_color">#F5F5F5</color>
+    <color name="primary_color">#E53935</color>
+    <color name="text_primary">#212121</color>
+    <color name="text_secondary">#757575</color>
+    <color name="divider_color">#BDBDBD</color>
+    <color name="error_color">#B71C1C</color>
+    <color name="warning_color">#F57F17</color>
     <color name="orange_primary">#F59E0B</color>
     <color name="orange_dark">#8F5C06</color>
     <color name="orange_primary_20">#33F59E0B</color>

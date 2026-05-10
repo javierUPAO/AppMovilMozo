@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        app:cardElevation="2dp"
+        app:cardCornerRadius="8dp">
+
+    <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+        <!-- Fila 1: Nombre + botón nota -->
+        <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+            <TextView
+                    android:id="@+id/tv_nombre_producto"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Nombre del producto"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary" />
+
+            <!-- Botón editar nota (HU 3.6) — mínimo 48x48dp -->
+            <ImageButton
+                    android:id="@+id/btn_nota"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:contentDescription="Editar nota"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_edit_note"
+                    app:tint="@color/text_secondary" />
+
+        </LinearLayout>
+
+        <!-- Fila 2: Nota libre (visible solo si existe) -->
+        <TextView
+                android:id="@+id/tv_nota"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="📝 sin cebolla"
+                android:textSize="13sp"
+                android:textColor="@color/text_secondary"
+                android:fontStyle="italic"
+                android:visibility="gone"
+                android:layout_marginTop="2dp"
+                android:layout_marginBottom="4dp" />
+
+        <!-- Fila 3: Precio unitario + controles de cantidad + subtotal -->
+        <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="8dp">
+
+            <!-- Precio unitario -->
+            <TextView
+                    android:id="@+id/tv_precio_unitario"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="S/0.00/u"
+                    android:textSize="13sp"
+                    android:textColor="@color/text_secondary" />
+
+            <!-- Espaciador -->
+            <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+
+            <!-- Control de cantidad: − cantidad + -->
+            <ImageButton
+                    android:id="@+id/btn_menos"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:contentDescription="Disminuir cantidad"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_remove"
+                    app:tint="@color/primary_color" />
+
+            <TextView
+                    android:id="@+id/tv_cantidad"
+                    android:layout_width="32dp"
+                    android:layout_height="wrap_content"
+                    android:text="1"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    android:textColor="@color/text_primary" />
+
+            <ImageButton
+                    android:id="@+id/btn_mas"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:contentDescription="Aumentar cantidad"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_add"
+                    app:tint="@color/primary_color" />
+
+            <!-- Espaciador -->
+            <View
+                    android:layout_width="8dp"
+                    android:layout_height="1dp" />
+
+            <!-- Subtotal -->
+            <TextView
+                    android:id="@+id/tv_subtotal"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="S/0.00"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/primary_color" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

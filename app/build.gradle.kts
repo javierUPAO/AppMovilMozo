@@ -83,4 +83,7 @@ dependencies {
     implementation("org.json:json:20230227")
     // Image loading
     implementation("io.coil-kt:coil:2.6.0")
+
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("com.google.android.material:material:1.11.0")
 }

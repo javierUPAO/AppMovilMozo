@@ -7,5 +7,6 @@ enum class EstadoPedido {
     LISTO_PARA_ENTREGAR,
     ENTREGADO,
     PAGADO,
-    PAGADO_PARCIAL
+    PAGADO_PARCIAL,
+    BORRADOR,
 }

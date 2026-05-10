@@ -5,11 +5,13 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.GridLayoutManager
 import com.donabere.amm.adapter.BebidasAdapter
 import com.donabere.amm.databinding.FragmentBebidasBinding
+import com.donabere.amm.ui.SeleccionProductoActivity
 import com.donabere.amm.viewmodel.BebidasViewModel
 
 class BebidasFragment : Fragment() {
@@ -37,8 +39,23 @@ class BebidasFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        adapter = BebidasAdapter(emptyList()) { }
-        binding.rvBebidas.layoutManager = GridLayoutManager(requireContext(), 2)
+        adapter = BebidasAdapter(emptyList()) { bebida ->
+            // Si viene de SeleccionProductoActivity → devolver resultado
+            if (activity is SeleccionProductoActivity) {
+                parentFragmentManager.setFragmentResult(
+                    SeleccionProductoActivity.RESULT_BEBIDA,
+                    bundleOf(
+                        SeleccionProductoActivity.EXTRA_PRODUCTO_ID     to bebida.id,
+                        SeleccionProductoActivity.EXTRA_PRODUCTO_NOMBRE to bebida.name,
+                        SeleccionProductoActivity.EXTRA_PRODUCTO_PRECIO to bebida.price
+                    )
+                )
+            } else {
+                // Comportamiento original en MenuActivity → solo Toast
+                Toast.makeText(requireContext(), "Bebida seleccionada: ${bebida.name}", Toast.LENGTH_SHORT).show()
+            }
+        }
+        binding.rvBebidas.layoutManager = GridLayoutManager(requireContext(),2)
         binding.rvBebidas.adapter = adapter
     }
 
