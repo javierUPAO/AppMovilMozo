@@ -5,7 +5,6 @@ import android.os.Bundle
 import android.view.View
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import com.donabere.amm.MenuActivity
 import com.donabere.amm.databinding.ActivityLoginBinding
 import com.donabere.amm.viewmodel.LoginViewModel
 import com.donabere.amm.utils.BiometricUtils
@@ -103,7 +102,12 @@ class LoginActivity : AppCompatActivity() {
     private fun setupObservers() {
         loginViewModel.loginExitoso.observe(this) { exitoso ->
             if (exitoso) {
-                startActivity(Intent(this, MenuActivity::class.java))
+                // Guardar email en SharedPreferences
+                val sharedPreferences = getSharedPreferences("app_prefs", 0)
+                val email = binding.etUsuario.text.toString()
+                sharedPreferences.edit().putString("user_email", email).apply()
+                
+                startActivity(Intent(this, MainActivity::class.java))
                 finish()
             }
         }
