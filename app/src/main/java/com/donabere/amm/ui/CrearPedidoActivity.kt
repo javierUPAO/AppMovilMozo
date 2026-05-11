@@ -27,8 +27,6 @@ import java.util.Locale
 
 class CrearPedidoActivity : AppCompatActivity() {
 
-    // ── Companion ────────────────────────────────────────────────────────────
-
     companion object {
         const val EXTRA_MESAS_IDS = "extra_mesas_ids"
         const val EXTRA_MOZO_ID   = "extra_mozo_id"
@@ -40,14 +38,10 @@ class CrearPedidoActivity : AppCompatActivity() {
             }
     }
 
-    // ── ViewModel (sin Room) ─────────────────────────────────────────────────
-
     private val viewModel: PedidoViewModel by viewModels {
         val repo = PedidoRepository()
         PedidoViewModel.Factory(repo, mozoId)
     }
-
-    // ── Launcher para SeleccionProductoActivity ───────────────────────────────
 
     private val seleccionProductoLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -69,8 +63,6 @@ class CrearPedidoActivity : AppCompatActivity() {
         }
     }
 
-    // ── Views ────────────────────────────────────────────────────────────────
-
     private lateinit var rvDetalles: RecyclerView
     private lateinit var tvTotal: TextView
     private lateinit var tvMesas: TextView
@@ -87,7 +79,6 @@ class CrearPedidoActivity : AppCompatActivity() {
 
     private var ultimoEliminado: DetallePedido? = null
 
-    // ── Lifecycle ────────────────────────────────────────────────────────────
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -107,7 +98,6 @@ class CrearPedidoActivity : AppCompatActivity() {
             "Mesas ${mesasIds.joinToString(" + ")}"
     }
 
-    // ── Inicialización ───────────────────────────────────────────────────────
 
     private fun initViews() {
         rvDetalles         = findViewById(R.id.rv_detalles_pedido)
@@ -170,6 +160,7 @@ class CrearPedidoActivity : AppCompatActivity() {
                 }
                 is PedidoViewModel.UiState.PedidoEnviado -> {
                     progressBar.visibility = View.GONE
+                    setResult(Activity.RESULT_OK)
                     mostrarSnackbar("✅ Pedido enviado a cocina", isError = false)
                     rvDetalles.postDelayed({ finish() }, 1500)
                 }
@@ -193,7 +184,6 @@ class CrearPedidoActivity : AppCompatActivity() {
         btnConfirmar.setOnClickListener { confirmarPedido() }
     }
 
-    // ── Acciones ─────────────────────────────────────────────────────────────
     private fun abrirSeleccionProductos() {
         val intent = SeleccionProductoActivity.newIntent(
             context = this,
@@ -253,7 +243,6 @@ class CrearPedidoActivity : AppCompatActivity() {
             .show()
     }
 
-    // ── Snackbars ────────────────────────────────────────────────────────────
 
     private fun mostrarSnackbar(mensaje: String, isError: Boolean) {
         val rootView = findViewById<View>(android.R.id.content)

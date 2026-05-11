@@ -15,8 +15,8 @@ class PedidoViewModel(
     private val mozoId: Int
 ) : ViewModel() {
 
-    private val _pedidoId = MutableLiveData<Int?>(null)
-    val pedidoId: LiveData<Int?> = _pedidoId
+    private val _pedidoId = MutableLiveData<String?>(null)
+    val pedidoId: LiveData<String?> = _pedidoId
 
     val detalles: LiveData<List<DetallePedido>> = _pedidoId.switchMap { id ->
         if (id != null) repository.getDetallesByPedido(id)
@@ -24,11 +24,11 @@ class PedidoViewModel(
     }
 
     sealed class UiState {
-        object Idle : UiState()
-        object Loading : UiState()
-        data class Success(val mensaje: String) : UiState()
-        data class Error(val mensaje: String) : UiState()
+        object Idle        : UiState()
+        object Loading     : UiState()
         object PedidoEnviado : UiState()
+        data class Success(val mensaje: String) : UiState()
+        data class Error(val mensaje: String)   : UiState()
     }
 
     private val _uiState = MutableLiveData<UiState>(UiState.Idle)
@@ -58,10 +58,11 @@ class PedidoViewModel(
         viewModelScope.launch {
             _uiState.value = UiState.Loading
             try {
-                val id = _pedidoId.value ?: repository.crearPedidoBorrador(mesasIds, mozoId)
-                    .also { _pedidoId.value = it }
+                val id = _pedidoId.value
+                    ?: repository.crearPedidoBorrador(mesasIds, mozoId)
+                        .also { _pedidoId.value = it }
 
-                repository.agregarDetalle(
+                val result = repository.agregarDetalle(
                     pedidoId       = id,
                     productoId     = productoId,
                     nombreProducto = nombreProducto,
@@ -69,7 +70,13 @@ class PedidoViewModel(
                     cantidad       = cantidad,
                     nota           = nota
                 )
-                _uiState.value = UiState.Idle
+
+                result.fold(
+                    onSuccess = { _uiState.value = UiState.Idle },
+                    onFailure = { e ->
+                        _uiState.value = UiState.Error(e.message ?: "Error al agregar producto")
+                    }
+                )
             } catch (e: Exception) {
                 _uiState.value = UiState.Error("Error al agregar producto: ${e.message}")
             }
@@ -78,6 +85,16 @@ class PedidoViewModel(
 
     fun actualizarCantidad(detalle: DetallePedido, nuevaCantidad: Int) {
         viewModelScope.launch {
+            // Si está incrementando, validar stock antes de actualizar
+            if (nuevaCantidad > detalle.cantidad) {
+                val stock = repository.obtenerStock(detalle.productoId)
+                if (stock != null && nuevaCantidad > stock) {
+                    _uiState.value = UiState.Error(
+                        "Stock insuficiente. Máximo disponible: $stock"
+                    )
+                    return@launch
+                }
+            }
             try {
                 repository.actualizarCantidadDetalle(detalle, nuevaCantidad)
             } catch (e: Exception) {
@@ -115,11 +132,8 @@ class PedidoViewModel(
         viewModelScope.launch {
             _uiState.value = UiState.Loading
             val result = repository.confirmarPedido(id)
-
             result.fold(
-                onSuccess = {
-                    _uiState.value = UiState.PedidoEnviado
-                },
+                onSuccess = { _uiState.value = UiState.PedidoEnviado },
                 onFailure = { e ->
                     _uiState.value = UiState.Error(e.message ?: "Error al confirmar pedido")
                 }

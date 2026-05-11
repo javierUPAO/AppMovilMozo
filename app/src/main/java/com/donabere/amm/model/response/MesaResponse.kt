@@ -6,5 +6,6 @@ data class MesaResponse(
     @SerializedName("id") val id: Int,
     @SerializedName("capacity") val capacity: Int,
     @SerializedName("status") val status: Int,
-    @SerializedName("price") val price: Double
+    @SerializedName("price") val price: Double,
+    val pedidoId: String? = null
 )

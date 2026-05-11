@@ -8,11 +8,14 @@ import android.widget.Toast
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import com.donabere.amm.adapter.MenuAdapter
 import com.donabere.amm.databinding.FragmentPlatosBinding
+import com.donabere.amm.repository.PedidoRepository
 import com.donabere.amm.ui.SeleccionProductoActivity
 import com.donabere.amm.viewmodel.MenuViewModel
+import kotlinx.coroutines.launch
 
 class PlatosFragment : Fragment() {
 
@@ -51,7 +54,6 @@ class PlatosFragment : Fragment() {
                     )
                 )
             } else {
-                // Comportamiento original en MenuActivity → solo Toast
                 Toast.makeText(requireContext(), "Plato seleccionado: ${dish.title}", Toast.LENGTH_SHORT).show()
             }
         }
