@@ -9,6 +9,7 @@ import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.donabere.amm.databinding.ActivityMesasBinding
 import com.donabere.amm.ui.CrearPedidoActivity
+import com.donabere.amm.ui.DetallePedidoActivity
 import com.donabere.amm.ui.adapter.ItemMesaAdapter
 import com.donabere.amm.viewmodel.MesasViewModel
 
@@ -24,15 +25,27 @@ class MesasFragment : Fragment() {
                 CrearPedidoActivity.newIntent(
                     context  = requireContext(),
                     mesasIds = listOf(mesa.id),
-                    mozoId   = 1 // temporal
+                    mozoId   = 1
                 )
             )
         } else {
-            android.widget.Toast.makeText(
-                requireContext(),
-                "Mesa ${mesa.id} está ocupada",
-                android.widget.Toast.LENGTH_SHORT
-            ).show()
+            // Mesa ocupada → abrir detalle del pedido
+            val pedidoId = mesa.pedidoId
+            if (pedidoId != null) {
+                startActivity(
+                    DetallePedidoActivity.newIntent(
+                        context  = requireContext(),
+                        pedidoId = pedidoId,
+                        mesaId   = mesa.id
+                    )
+                )
+            } else {
+                android.widget.Toast.makeText(
+                    requireContext(),
+                    "No se pudo obtener el pedido de la Mesa ${mesa.id}",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            }
         }
     }
 
@@ -84,5 +97,10 @@ class MesasFragment : Fragment() {
             binding.tvError.visibility = View.VISIBLE
             binding.rvMesas.visibility = View.GONE
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.fetchMesas()
     }
 }

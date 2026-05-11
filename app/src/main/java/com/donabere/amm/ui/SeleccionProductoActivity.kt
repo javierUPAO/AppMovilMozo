@@ -1,6 +1,5 @@
 package com.donabere.amm.ui
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -52,7 +51,7 @@ class SeleccionProductoActivity : AppCompatActivity() {
         supportActionBar?.title = "Seleccionar producto"
 
         binding.toolbar.setNavigationOnClickListener {
-            setResult(Activity.RESULT_CANCELED)
+            setResult(RESULT_CANCELED)
             finish()
         }
 
@@ -98,7 +97,7 @@ class SeleccionProductoActivity : AppCompatActivity() {
             putExtra(EXTRA_PRODUCTO_NOMBRE, nombre)
             putExtra(EXTRA_PRODUCTO_PRECIO, precio)
         }
-        setResult(Activity.RESULT_OK, resultIntent)
+        setResult(RESULT_OK, resultIntent)
         finish()
     }
 }

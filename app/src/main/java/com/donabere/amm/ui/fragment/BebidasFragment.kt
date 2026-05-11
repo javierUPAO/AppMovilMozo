@@ -8,11 +8,14 @@ import android.widget.Toast
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import com.donabere.amm.adapter.BebidasAdapter
 import com.donabere.amm.databinding.FragmentBebidasBinding
+import com.donabere.amm.repository.PedidoRepository
 import com.donabere.amm.ui.SeleccionProductoActivity
 import com.donabere.amm.viewmodel.BebidasViewModel
+import kotlinx.coroutines.launch
 
 class BebidasFragment : Fragment() {
 

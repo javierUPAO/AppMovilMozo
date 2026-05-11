@@ -35,6 +35,7 @@
                 android:exported="false" />
         <activity android:name=".ui.SeleccionProductoActivity"
                 android:exported="false" />
+        <activity android:name=".ui.DetallePedidoActivity"/>
     </application>
 
 </manifest>
