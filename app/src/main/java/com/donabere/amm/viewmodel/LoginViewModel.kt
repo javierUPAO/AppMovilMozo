@@ -32,12 +32,6 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
 
-    private val _mostrarOpcionBiometria = MutableLiveData<Boolean>()
-    val mostrarOpcionBiometria: LiveData<Boolean> = _mostrarOpcionBiometria
-
-    private val _userEmail = MutableLiveData<String>()
-    val userEmail: LiveData<String> = _userEmail
-
     fun login(email: String, contrasena: String) {
         if (email.isBlank() || contrasena.isBlank()) {
             _error.value = "Completa todos los campos"
@@ -54,10 +48,8 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             result.onSuccess { response ->
                 if (!response.token.isNullOrEmpty()) {
                     tokenManager.saveToken(response.token)
-                    _userEmail.value = email
-                    
-                    // SIEMPRE mostrar opción de biometría después de loguear
-                    _mostrarOpcionBiometria.value = true
+                    // Login exitoso - pasar directo a la siguiente pantalla sin interrupciones
+                    _loginExitoso.value = true
                 } else {
                     _error.value = "No se recibió un token válido del servidor"
                 }
@@ -110,10 +102,5 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
     fun hasFingerprintRegistered(): Boolean {
         return KeystoreManager.hasFingerprintKey()
-    }
-
-    fun skipBiometricRegistration() {
-        _mostrarOpcionBiometria.value = false
-        _loginExitoso.value = true
     }
 }

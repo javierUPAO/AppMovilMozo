@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="32dp"
+    android:background="#1A1A2E">
+
+    <ImageView
+        android:layout_width="120dp"
+        android:layout_height="120dp"
+        android:src="@mipmap/ic_launcher"
+        android:layout_marginBottom="32dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Doña Bere"
+        android:textSize="32sp"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold"
+        android:layout_marginBottom="16dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Elige cómo deseas ingresar"
+        android:textSize="16sp"
+        android:textColor="#AAAAAA"
+        android:layout_marginBottom="48dp"/>
+
+    <Button
+        android:id="@+id/btnLoginCredentials"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="📧 Loguerse con Credenciales"
+        android:textSize="16sp"
+        android:backgroundTint="#E94560"
+        android:layout_marginBottom="16dp"/>
+
+    <Button
+        android:id="@+id/btnLoginBiometric"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="🔐 Loguerse con Huella"
+        android:textSize="16sp"
+        android:backgroundTint="#16A34A"
+        android:layout_marginBottom="24dp"/>
+
+</LinearLayout>
