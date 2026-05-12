@@ -18,6 +18,8 @@ class ProfileFragment : Fragment() {
     private lateinit var sharedPreferences: SharedPreferences
     private var userEmail: String = ""
 
+    private var letterprofile : String = ""
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -32,16 +34,22 @@ class ProfileFragment : Fragment() {
 
         sharedPreferences = requireContext().getSharedPreferences("app_prefs", 0)
         userEmail = sharedPreferences.getString("user_email", "") ?: ""
-
+        letterprofile = obtenerIniciales(userEmail)
         setupUI()
         setupObservers()
         setupListeners()
     }
 
+    private fun obtenerIniciales(texto: String): String {
+        return texto
+            .take(2)
+            .uppercase()
+    }
     private fun setupUI() {
         // Mostrar email del usuario
         binding.tvUserEmail.text = userEmail
         binding.tvUserName.text = "Mi Perfil"
+        binding.profileLetter.text=letterprofile
     }
 
     private fun setupListeners() {
@@ -95,7 +103,6 @@ class ProfileFragment : Fragment() {
         profileViewModel.fingerprintStatus.observe(viewLifecycleOwner) { status ->
             when (status) {
                 ProfileViewModel.FingerprintStatus.REGISTERED -> {
-                    binding.ivFingerprintIcon.text = "🔐"
                     binding.tvFingerprintStatus.text = "✓ Huella Registrada"
                     binding.tvFingerprintStatus.setTextColor(
                         requireContext().getColor(android.R.color.holo_green_dark)
@@ -105,8 +112,7 @@ class ProfileFragment : Fragment() {
                     binding.tvFingerprintDescription.text = "Tu huella está registrada y lista para usar en login"
                 }
                 ProfileViewModel.FingerprintStatus.NOT_REGISTERED -> {
-                    binding.ivFingerprintIcon.text = "🔓"
-                    binding.tvFingerprintStatus.text = "⚠️ No Registrada"
+                    binding.tvFingerprintStatus.text = "No Registrada"
                     binding.tvFingerprintStatus.setTextColor(
                         requireContext().getColor(android.R.color.holo_orange_dark)
                     )
