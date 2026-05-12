@@ -13,8 +13,11 @@
         android:paddingVertical="16dp">
 
         <!-- Card: Información de Usuario -->
-        <androidx.cardview.widget.CardView
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
+            app:strokeWidth="2dp"
+            app:strokeColor="#F59E0B"
+            app:cardBackgroundColor="#FFFBEB"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
             app:cardCornerRadius="12dp"
@@ -23,48 +26,285 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:gravity="center"
+
                 android:orientation="vertical"
-                android:padding="16dp"
-                android:background="@android:color/white">
+                android:padding="16dp">
+
+                <LinearLayout
+                    android:layout_width="90dp"
+                    android:layout_height="90dp"
+                    android:layout_marginTop="16dp"
+                    android:layout_marginBottom="16dp"
+                    android:background="@drawable/bg_circle_orange"
+                    android:gravity="center">
+
+                    <TextView
+                        android:id="@+id/profileLetter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="DB"
+                        android:textColor="#F59E0B"
+                        android:textSize="28sp"
+                        android:textStyle="bold" />
+
+                </LinearLayout>
 
                 <TextView
                     android:id="@+id/tvUserName"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
                     android:text="Mi Perfil"
-                    android:textSize="20sp"
-                    android:textStyle="bold"
                     android:textColor="#1A1A2E"
-                    android:layout_marginBottom="12dp" />
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:gravity="center"
                     android:orientation="horizontal"
-                    android:gravity="center_vertical">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="📧"
-                        android:textSize="18sp"
-                        android:layout_marginEnd="8dp" />
+                    android:layout_marginBottom="25dp">
 
                     <TextView
                         android:id="@+id/tvUserEmail"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
+                        android:gravity="center"
                         android:text="usuario@example.com"
-                        android:textSize="14sp"
-                        android:textColor="#666666" />
+                        android:textColor="#666666"
+                        android:textSize="14sp" />
                 </LinearLayout>
+                <LinearLayout
+                    android:layout_width="300dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Turno : "
+                        android:layout_marginEnd="10dp"
+                        android:textStyle="bold"
+                        android:textColor="#000000"
+                        android:textSize="16sp"/>
+
+                    <TextView
+                        android:id="@+id/estado_turno"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="#000000"
+                        android:textSize="16sp"
+                        android:textStyle="bold"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="300dp"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="24dp">
+
+                    <Button
+                        android:id="@+id/btn_abrir_turno"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="8dp"
+                        android:text="Abrir"
+                        android:backgroundTint="#FFFF"
+                        android:textAllCaps="false"
+                        app:strokeColor="#F59E0B"
+                        android:textColor="#AEAEAE"
+                        />
+
+                    <Button
+                        android:id="@+id/btn_cerrar_turno"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:backgroundTint="#F59E0B"
+                        android:text="Cerrar"
+                        android:textAllCaps="false"
+                        android:textColor="#000000" />
+                </LinearLayout>
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="320dp"
+                    app:strokeWidth="2dp"
+                    app:strokeColor="#F59E0B"
+                    app:cardBackgroundColor="#FFFBEB"
+                    android:layout_height="match_parent"
+                    android:layout_marginBottom="16dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="4dp"
+                    android:padding="16dp"
+                    >
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:orientation="horizontal"
+                        android:layout_margin="15dp">
+                        <LinearLayout
+                            android:orientation="vertical"
+                            android:layout_width="wrap_content"
+                            android:layout_height="match_parent"
+                            android:gravity="start"
+                            >
+                            <TextView android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Mesas Atendidas :"
+                                android:textSize="14sp"
+                                android:textStyle="bold"
+                                android:textColor="#000000"/>
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Pedidos Entregados :"
+                                android:textStyle="bold"
+                                android:textColor="#000000"/>
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Total Cobrado :"
+                                android:textStyle="bold"
+                                android:textColor="#000000"/>
+                        </LinearLayout>
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="match_parent"
+                            android:orientation="vertical"
+                            android:layout_marginStart="60dp"
+                            android:gravity="center"
+                            >
+                            <TextView
+                                android:id="@+id/total_mesas"
+                                android:layout_marginStart="10dp"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_alignParentEnd="true"
+                                android:text="0"
+                                android:textStyle="bold"
+                                android:textColor="#000000"/>
+                            <TextView
+                                android:layout_marginStart="10dp"
+                                android:id="@+id/total_pedidos"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_alignParentEnd="true"
+                                android:text="0" android:textStyle="bold"
+                                android:textColor="#000000"/>
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_alignParentEnd="true"
+                                    android:text="S/. "
+                                    android:textStyle="bold"
+                                    android:textColor="#000000"/>
+                                <TextView
+                                    android:id="@+id/total_cobrado"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_alignParentEnd="true"
+                                    android:text="0"
+                                    android:textStyle="bold"
+                                    android:textColor="#000000"/>
+                            </LinearLayout>
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
             </LinearLayout>
-        </androidx.cardview.widget.CardView>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Card: Opciones -->
+        <com.google.android.material.card.MaterialCardView
+            app:strokeWidth="2dp"
+            app:strokeColor="#F59E0B"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardBackgroundColor="#FFFBEB"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="300dp"
+                    android:layout_gravity="center"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:padding="16dp">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_notifications"
+                        app:tint="#F59E0B" />
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="16dp" android:text="Notificaciones" android:textColor="#000000" android:textSize="16sp"/>
+                    <com.google.android.material.switchmaterial.SwitchMaterial android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true" app:thumbTint="#F59E0B"/>
+                </LinearLayout>
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#FDE68A"/>
+
+                <LinearLayout
+                    android:layout_width="300dp"
+                    android:layout_gravity="center"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:padding="16dp">
+                    <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_help" app:tint="#F59E0B"/>
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="16dp" android:text="Ayuda y Soporte" android:textColor="#000000" android:textSize="16sp"/>
+                    <ImageButton android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_chevron_right" app:tint="#F59E0B"
+                        android:background="@android:color/transparent"
+                        />
+                </LinearLayout>
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#FDE68A"/>
+
+                <LinearLayout
+                    android:layout_width="300dp"
+                    android:layout_gravity="center"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:padding="16dp">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_logout"
+                        android:rotation="90"
+                        app:tint="#EF4444" />
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="16dp" android:text="Cerrar Sesión" android:textColor="#EF4444" android:textSize="16sp"/>
+                    <ImageButton
+                        android:layout_width="24dp"
+                        android:background="@android:color/transparent"
+                        android:layout_height="24dp" android:src="@drawable/ic_chevron_right" app:tint="#F59E0B"/>
+                </LinearLayout>
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
 
         <!-- Card: Seguridad - Huella Dactilar -->
-        <androidx.cardview.widget.CardView
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
+            app:strokeWidth="2dp"
+            app:strokeColor="#F59E0B"
+            app:cardBackgroundColor="#FFFBEB"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
             app:cardCornerRadius="12dp"
@@ -75,57 +315,63 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:padding="16dp"
-                android:background="@android:color/white">
+>
 
                 <!-- Encabezado de Seguridad -->
                 <LinearLayout
-                    android:layout_width="match_parent"
+                    android:layout_width="300dp"
+                    android:layout_gravity="center"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginBottom="16dp">
-
-                    <TextView
-                        android:id="@+id/ivFingerprintIcon"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
-                        android:text="🔐"
-                        android:textSize="24sp"
-                        android:gravity="center"
-                        android:layout_marginEnd="8dp" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="🔐 SEGURIDAD"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:textColor="#1A1A2E" />
+                    android:gravity="center_vertical">
+                    <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_lock" app:tint="#F59E0B"/>
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="16dp" android:text="Seguridad" android:textStyle="bold" android:textColor="#000000" android:textSize="16sp"/>
+                    <ImageButton
+                        android:background="@android:color/transparent"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_chevron_right"
+                        android:rotation="90"
+                        app:tint="#F59E0B"/>
                 </LinearLayout>
 
                 <!-- Divisor -->
                 <View
                     android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:background="#EEEEEE"
+                    android:layout_height="2dp"
+                    android:background="#FDE68A"
+                    android:layout_marginTop="16dp"
                     android:layout_marginBottom="16dp" />
 
                 <!-- Estado de Huella -->
                 <LinearLayout
-                    android:layout_width="match_parent"
+                    android:layout_width="250dp"
+                    android:layout_gravity="center"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
                     android:layout_marginBottom="16dp">
 
-                    <TextView
-                        android:id="@+id/tvFingerprintStatus"
-                        android:layout_width="wrap_content"
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="⚠️ No Registrada"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:textColor="#E94560"
-                        android:layout_marginBottom="8dp" />
+                        android:orientation="horizontal"
+                        >
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:src="@drawable/ic_warning"
+                            android:layout_marginEnd="10dp"
+                            app:tint="#E94560"/>
+
+                        <TextView
+                            android:id="@+id/tvFingerprintStatus"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="No Registrada"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="#E94560"
+                            android:layout_marginBottom="8dp" />
+                    </LinearLayout>
 
                     <TextView
                         android:id="@+id/tvFingerprintDescription"
@@ -133,7 +379,8 @@
                         android:layout_height="wrap_content"
                         android:text="Registra tu huella para entradas más rápidas"
                         android:textSize="13sp"
-                        android:textColor="#999999" />
+                        android:textColor="#000000" />
+
                 </LinearLayout>
 
                 <!-- Botones -->
@@ -143,27 +390,34 @@
                     android:orientation="vertical"
                     android:gravity="center">
 
-                    <Button
+                    <com.google.android.material.button.MaterialButton
+                        android:layout_width="wrap_content"
                         android:id="@+id/btnRegisterFingerprint"
-                        android:layout_width="match_parent"
                         android:layout_height="48dp"
-                        android:text="📝 Registrar Mi Huella"
+                        android:layout_gravity="center"
+                        android:layout_marginTop="16dp"
+                        android:backgroundTint="#F59E0B"
+                        android:text="Registrar huella"
                         android:textSize="14sp"
-                        android:backgroundTint="#16A34A"
+                        android:textAllCaps="false"
+                        android:textColor="#000000"
+                        app:cornerRadius="20dp"
+                        android:visibility="gone"
                         android:layout_marginBottom="8dp"
-                        android:visibility="gone" />
+                        app:icon="@drawable/ic_alternative_fingerprint"
+                        app:iconTint="#000000" />
 
                     <Button
                         android:id="@+id/btnDeleteFingerprint"
                         android:layout_width="match_parent"
                         android:layout_height="48dp"
-                        android:text="🗑️ Eliminar Huella"
+                        android:text="Eliminar Huella"
                         android:textSize="14sp"
                         android:backgroundTint="#E94560"
                         android:visibility="gone" />
                 </LinearLayout>
             </LinearLayout>
-        </androidx.cardview.widget.CardView>
+        </com.google.android.material.card.MaterialCardView>
 
         <!-- Progress Bar -->
         <ProgressBar
