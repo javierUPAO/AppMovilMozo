@@ -1,70 +1,68 @@
-<?xml version="1.0" encoding="utf-8"?>
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_width="170dp"
+    android:layout_height="170dp"
     android:layout_margin="8dp"
     app:cardCornerRadius="12dp"
+    android:background="@android:color/transparent"
     app:cardElevation="4dp">
 
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <LinearLayout
+
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:padding="16dp">
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="#FFFF"
+        android:padding="10dp">
 
-        <ImageView
-            android:id="@+id/ivIconoMesa"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:src="@android:drawable/ic_menu_myplaces"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+        <!-- ICONO + ID CENTRADO -->
+        <FrameLayout
+            android:layout_width="100dp"
+            android:layout_height="100dp">
 
-        <TextView
-            android:id="@+id/tvIdMesa"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            app:layout_constraintStart_toEndOf="@+id/ivIconoMesa"
-            app:layout_constraintTop_toTopOf="parent"
-            tools:text="Mesa 1" />
+            <ImageView
+                android:id="@+id/ivIconoMesa"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:src="@drawable/ic_table_new"
+                android:scaleType="fitCenter"
+                />
 
+            <TextView
+                android:id="@+id/tvIdMesa"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:text="m1"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:textColor="#616161"/>
+            <TextView
+                android:id="@+id/tvEstado"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center" />
+        </FrameLayout>
+
+        <!-- TEXTO ABAJO -->
         <TextView
             android:id="@+id/tvCapacidad"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:textColor="#666666"
-            app:layout_constraintStart_toStartOf="@+id/tvIdMesa"
-            app:layout_constraintTop_toBottomOf="@+id/tvIdMesa"
-            tools:text="Capacidad: 4 personas" />
-
+            android:textStyle="bold"
+            android:textColor="#333333"
+            tools:text="3"
+            />
         <TextView
-            android:id="@+id/tvEstado"
+            android:id="@+id/tvCapacidadTexto"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
             android:textStyle="bold"
-            app:layout_constraintStart_toStartOf="@+id/tvCapacidad"
-            app:layout_constraintTop_toBottomOf="@+id/tvCapacidad"
-            tools:text="Disponible" />
-
-        <TextView
-            android:id="@+id/tvPrecio"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:textColor="#388E3C"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            tools:text="$15.0" />
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
+            android:textColor="#333333"
+            tools:text="Personas"
+            />
+    </LinearLayout>
 
 </com.google.android.material.card.MaterialCardView>
