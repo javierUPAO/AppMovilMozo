@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 
 class PedidoViewModel(
     private val repository: PedidoRepository,
-    private val mozoId: Int
+    private val mozoId: String
 ) : ViewModel() {
 
     private val _pedidoId = MutableLiveData<String?>(null)
@@ -34,7 +34,7 @@ class PedidoViewModel(
     private val _uiState = MutableLiveData<UiState>(UiState.Idle)
     val uiState: LiveData<UiState> = _uiState
 
-    fun iniciarPedido(mesasIds: List<Int>) {
+    fun iniciarPedido(mesasIds: List<String>) {
         viewModelScope.launch {
             _uiState.value = UiState.Loading
             try {
@@ -48,8 +48,8 @@ class PedidoViewModel(
     }
 
     fun agregarProducto(
-        mesasIds: List<Int>,
-        productoId: Int,
+        mesasIds: List<String>,
+        productoId: String,
         nombreProducto: String,
         precioUnitario: Double,
         cantidad: Int = 1,
@@ -147,7 +147,7 @@ class PedidoViewModel(
 
     class Factory(
         private val repository: PedidoRepository,
-        private val mozoId: Int
+        private val mozoId: String
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {

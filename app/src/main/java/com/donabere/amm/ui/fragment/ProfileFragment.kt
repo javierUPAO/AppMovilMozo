@@ -1,13 +1,16 @@
 package com.donabere.amm.ui.fragment
 
+import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import com.donabere.amm.databinding.FragmentProfileBinding
+import com.donabere.amm.ui.LoginActivity
 import com.donabere.amm.viewmodel.ProfileViewModel
 import com.donabere.amm.utils.BiometricUtils
 
@@ -18,7 +21,10 @@ class ProfileFragment : Fragment() {
     private lateinit var sharedPreferences: SharedPreferences
     private var userEmail: String = ""
 
+
+
     private var letterprofile : String = ""
+    private var usuarioId: String = ""
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -34,7 +40,13 @@ class ProfileFragment : Fragment() {
 
         sharedPreferences = requireContext().getSharedPreferences("app_prefs", 0)
         userEmail = sharedPreferences.getString("user_email", "") ?: ""
+        usuarioId = sharedPreferences.getString("usuario_id", "") ?: ""
+
         letterprofile = obtenerIniciales(userEmail)
+        Log.d("MOZO_DEBUG", "usuarioId=$usuarioId")
+        profileViewModel.setUsuarioId(usuarioId)
+        profileViewModel.cargarMozo()
+
         setupUI()
         setupObservers()
         setupListeners()
@@ -48,7 +60,6 @@ class ProfileFragment : Fragment() {
     private fun setupUI() {
         // Mostrar email del usuario
         binding.tvUserEmail.text = userEmail
-        binding.tvUserName.text = "Mi Perfil"
         binding.profileLetter.text=letterprofile
     }
 
@@ -97,9 +108,20 @@ class ProfileFragment : Fragment() {
                 }
                 .show()
         }
+
+        binding.btnLogout.setOnClickListener {
+            profileViewModel.logout(requireContext())
+        }
     }
 
     private fun setupObservers() {
+
+        profileViewModel.mozo.observe(viewLifecycleOwner) { mozo ->
+            Log.d("UI_DEBUG", "Observer: ${mozo.name}")
+
+            binding.tvUserName.text = "${mozo.name} ${mozo.lastname}"
+        }
+
         profileViewModel.fingerprintStatus.observe(viewLifecycleOwner) { status ->
             when (status) {
                 ProfileViewModel.FingerprintStatus.REGISTERED -> {
@@ -147,6 +169,11 @@ class ProfileFragment : Fragment() {
                     }
                 }, 3000)
             }
+        }
+
+        profileViewModel.logoutEvent.observe(viewLifecycleOwner) {
+            startActivity(Intent(requireContext(), LoginActivity::class.java))
+            requireActivity().finish()
         }
     }
 }

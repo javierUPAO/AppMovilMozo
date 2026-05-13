@@ -28,13 +28,13 @@ class PedidoRepository {
     private val _pedido   = MutableLiveData<Pedido?>(null)
 
 
-    fun getPedidoActivoPorMesa(mesaId: Int): LiveData<Pedido?> = _pedido
+    fun getPedidoActivoPorMesa(mesaId: String): LiveData<Pedido?> = _pedido
     fun getPedidoById(id: String): LiveData<Pedido?> = _pedido
     fun getDetallesByPedido(pedidoId: String): LiveData<List<DetallePedido>> = _detalles
     fun getCuentasByPedido(pedidoId: String): LiveData<List<Cuenta>> =
         MutableLiveData(emptyList())
 
-    suspend fun crearPedidoBorrador(mesasIds: List<Int>, mozoId: Int): String {
+    suspend fun crearPedidoBorrador(mesasIds: List<String>, mozoId: String): String {
         // Crear documento en Firestore
         val pedidoData = hashMapOf(
             "mozoId"    to mozoId,
@@ -49,7 +49,7 @@ class PedidoRepository {
         val pedido = Pedido(
             id       = pedidoId,
             mozoId   = mozoId,
-            mesasIds = mesasIds.joinToString(","),
+            mesasIds = mesasIds,
             estado   = EstadoPedido.BORRADOR
         )
         pedidoActual = pedido
@@ -63,7 +63,7 @@ class PedidoRepository {
 
     suspend fun agregarDetalle(
         pedidoId: String,
-        productoId: Int,
+        productoId: String,
         nombreProducto: String,
         precioUnitario: Double,
         cantidad: Int = 1,
@@ -93,7 +93,6 @@ class PedidoRepository {
             detalleId = "detalle_${contadorIdDetalle++}"
             val detalle = DetallePedido(
                 id             = detalleId,
-                pedidoId       = pedidoId,
                 productoId     = productoId,
                 nombreProducto = nombreProducto,
                 precioUnitario = precioUnitario,
@@ -169,13 +168,13 @@ class PedidoRepository {
             ).await()
 
             // 3. Marcar mesa(s) como OCUPADA en Firestore
-            val mesasIds = pedidoActual!!.mesasIds.split(",")
+            val mesasIds = pedidoActual!!.mesasIds
             mesasIds.forEach { mesaId ->
                 mesasRef.document(mesaId.trim()).set(
                     hashMapOf(
                         "estado"    to "OCUPADA",
                         "pedidoId"  to pedidoId,
-                        "mesaId"    to mesaId.trim().toInt()
+                        "mesaId"    to mesaId
                     )
                 ).await()
             }
@@ -201,7 +200,7 @@ class PedidoRepository {
         }
     }
 
-    suspend fun obtenerStock(productoId: Int): Int? {
+    suspend fun obtenerStock(productoId: String): Int? {
         return try {
             val doc = stockRef.document(productoId.toString()).get().await()
             if (doc.exists()) doc.getLong("cantidad")?.toInt()
@@ -212,7 +211,7 @@ class PedidoRepository {
         }
     }
 
-    suspend fun inicializarStockSiNoExiste(productoId: Int, stockInicial: Int) {
+    suspend fun inicializarStockSiNoExiste(productoId: String, stockInicial: Int) {
         try {
             val doc = stockRef.document(productoId.toString()).get().await()
             if (!doc.exists()) {
@@ -226,9 +225,9 @@ class PedidoRepository {
         }
     }
 
-    private suspend fun descontarStock(productoId: Int, cantidad: Int) {
+    private suspend fun descontarStock(productoId: String, cantidad: Int) {
         try {
-            val docRef = stockRef.document(productoId.toString())
+            val docRef = stockRef.document(productoId)
             val doc = docRef.get().await()
             val stockActual = doc.getLong("cantidad")?.toInt() ?: return
             val nuevoStock = maxOf(0, stockActual - cantidad)
@@ -239,9 +238,9 @@ class PedidoRepository {
         }
     }
 
-    suspend fun obtenerEstadoMesa(mesaId: Int): String {
+    suspend fun obtenerEstadoMesa(mesaId: String): String {
         return try {
-            val doc = mesasRef.document(mesaId.toString()).get().await()
+            val doc = mesasRef.document(mesaId).get().await()
             if (doc.exists()) doc.getString("estado") ?: "LIBRE"
             else "LIBRE"
         } catch (e: Exception) {

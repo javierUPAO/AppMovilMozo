@@ -1,7 +1,8 @@
 package com.donabere.amm.model
 
 data class Mozo(
-    val id: Int,
-    val usuarioId: Int,
-    val turno: Turno?,
+    val id: String = "",
+    val name: String = "",
+    val lastname: String = "",
+    val usuarioId: String = ""
 )

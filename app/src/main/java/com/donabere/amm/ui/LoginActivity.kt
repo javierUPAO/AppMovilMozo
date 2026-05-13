@@ -9,6 +9,7 @@ import com.donabere.amm.databinding.ActivityLoginBinding
 import com.donabere.amm.viewmodel.LoginViewModel
 import com.donabere.amm.utils.BiometricUtils
 import com.donabere.amm.utils.KeystoreManager
+import androidx.core.content.edit
 
 class LoginActivity : AppCompatActivity() {
 
@@ -100,17 +101,20 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun setupObservers() {
-        loginViewModel.loginExitoso.observe(this) { exitoso ->
-            if (exitoso) {
-                // Guardar email en SharedPreferences
-                val sharedPreferences = getSharedPreferences("app_prefs", 0)
-                val email = binding.etUsuario.text.toString()
-                sharedPreferences.edit().putString("user_email", email).apply()
-                
-                startActivity(Intent(this, MainActivity::class.java))
-                finish()
+
+        loginViewModel.authResponse.observe(this) { response ->
+
+            val sharedPreferences = getSharedPreferences("app_prefs", 0)
+
+            sharedPreferences.edit {
+                putString("user_email", binding.etUsuario.text.toString())
+                    .putString("usuario_id", response.id.toString())
             }
+
+            startActivity(Intent(this, MainActivity::class.java))
+            finish()
         }
+
 
         loginViewModel.isLoading.observe(this) { loading ->
             binding.progressBar.visibility = if (loading) View.VISIBLE else View.GONE

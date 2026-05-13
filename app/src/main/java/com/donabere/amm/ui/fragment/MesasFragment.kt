@@ -4,10 +4,13 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.donabere.amm.databinding.ActivityMesasBinding
+import com.donabere.amm.model.enums.EstadoMesa
 import com.donabere.amm.ui.CrearPedidoActivity
 import com.donabere.amm.ui.DetallePedidoActivity
 import com.donabere.amm.ui.adapter.ItemMesaAdapter
@@ -20,34 +23,40 @@ class MesasFragment : Fragment() {
 
     private val viewModel: MesasViewModel by viewModels()
     private val adapter = ItemMesaAdapter { mesa ->
-        if (mesa.status == 0) {
-            startActivity(
-                CrearPedidoActivity.newIntent(
-                    context  = requireContext(),
-                    mesasIds = listOf(mesa.id),
-                    mozoId   = 1
-                )
-            )
-        } else {
-            // Mesa ocupada → abrir detalle del pedido
-            val pedidoId = mesa.pedidoId
-            if (pedidoId != null) {
+
+        when (mesa.estado) {
+
+            EstadoMesa.LIBRE -> {
                 startActivity(
-                    DetallePedidoActivity.newIntent(
-                        context  = requireContext(),
-                        pedidoId = pedidoId,
-                        mesaId   = mesa.id
+                    CrearPedidoActivity.newIntent(
+                        requireContext(),
+                        mesasIds = listOf(mesa.id),
+                        mozoId = ""
                     )
                 )
-            } else {
-                android.widget.Toast.makeText(
+            }
+
+            EstadoMesa.OCUPADA -> {
+                // si aún tienes pedidoId en otro lado lo manejas aquí
+                Toast.makeText(
                     requireContext(),
-                    "No se pudo obtener el pedido de la Mesa ${mesa.id}",
-                    android.widget.Toast.LENGTH_SHORT
+                    "Mesa ocupada: ${mesa.id}",
+                    Toast.LENGTH_SHORT
+                ).show()
+
+                // o abrir detalle si luego agregas pedidoId al modelo
+            }
+
+            else -> {
+                Toast.makeText(
+                    requireContext(),
+                    "Estado desconocido",
+                    Toast.LENGTH_SHORT
                 ).show()
             }
         }
     }
+
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -73,7 +82,7 @@ class MesasFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        binding.rvMesas.layoutManager = LinearLayoutManager(requireContext())
+        binding.rvMesas.layoutManager = GridLayoutManager(requireContext(), 2)
         binding.rvMesas.adapter = adapter
     }
 

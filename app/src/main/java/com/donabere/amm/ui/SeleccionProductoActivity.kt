@@ -26,7 +26,7 @@ class SeleccionProductoActivity : AppCompatActivity() {
         const val RESULT_BEBIDA = "result_bebida"
         const val REQUEST_CODE  = 1001
 
-        fun newIntent(context: Context, mesaId: Int): Intent =
+        fun newIntent(context: Context, mesaId: String): Intent =
             Intent(context, SeleccionProductoActivity::class.java).apply {
                 putExtra(EXTRA_MESA_ID, mesaId)
             }

@@ -31,9 +31,9 @@ class CrearPedidoActivity : AppCompatActivity() {
         const val EXTRA_MESAS_IDS = "extra_mesas_ids"
         const val EXTRA_MOZO_ID   = "extra_mozo_id"
 
-        fun newIntent(context: Context, mesasIds: List<Int>, mozoId: Int): Intent =
+        fun newIntent(context: Context, mesasIds: List<String>, mozoId: String): Intent =
             Intent(context, CrearPedidoActivity::class.java).apply {
-                putExtra(EXTRA_MESAS_IDS, mesasIds.toIntArray())
+                putExtra(EXTRA_MESAS_IDS, mesasIds.toString())
                 putExtra(EXTRA_MOZO_ID, mozoId)
             }
     }
@@ -48,11 +48,11 @@ class CrearPedidoActivity : AppCompatActivity() {
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             val data = result.data
-            val id     = data?.getIntExtra(SeleccionProductoActivity.EXTRA_PRODUCTO_ID, -1) ?: -1
+            val id     = data?.getStringExtra(SeleccionProductoActivity.EXTRA_PRODUCTO_ID) ?: ""
             val nombre = data?.getStringExtra(SeleccionProductoActivity.EXTRA_PRODUCTO_NOMBRE) ?: ""
             val precio = data?.getDoubleExtra(SeleccionProductoActivity.EXTRA_PRODUCTO_PRECIO, 0.0) ?: 0.0
 
-            if (id != -1 && nombre.isNotBlank()) {
+            if (id != "" && nombre.isNotBlank()) {
                 viewModel.agregarProducto(
                     mesasIds       = mesasIds,
                     productoId     = id,
@@ -74,8 +74,8 @@ class CrearPedidoActivity : AppCompatActivity() {
     private lateinit var adapter: DetallePedidoAdapter
     private val moneyFormat = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("es-PE"))
 
-    private lateinit var mesasIds: List<Int>
-    private var mozoId: Int = -1
+    private lateinit var mesasIds: List<String>
+    private var mozoId: String = ""
 
     private var ultimoEliminado: DetallePedido? = null
 
@@ -84,8 +84,8 @@ class CrearPedidoActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_crear_pedido)
 
-        mesasIds = intent.getIntArrayExtra(EXTRA_MESAS_IDS)?.toList() ?: listOf()
-        mozoId   = intent.getIntExtra(EXTRA_MOZO_ID, -1)
+        mesasIds = intent.getStringArrayExtra(EXTRA_MESAS_IDS)?.toList() ?: listOf()
+        mozoId   = intent.getStringExtra(EXTRA_MOZO_ID)?: ""
 
         initViews()
         setupRecyclerView()
