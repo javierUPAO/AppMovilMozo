@@ -25,7 +25,7 @@ class MesasFragment : Fragment() {
                 CrearPedidoActivity.newIntent(
                     context  = requireContext(),
                     mesasIds = listOf(mesa.id),
-                    mozoId   = 1
+                    mozoId   = ""
                 )
             )
         } else {

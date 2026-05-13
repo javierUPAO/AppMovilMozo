@@ -8,6 +8,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.donabere.amm.model.request.LoginRequest
 import com.donabere.amm.model.request.BiometricLoginRequest
+import com.donabere.amm.model.response.AuthResponse
 import com.donabere.amm.network.RetrofitClient
 import com.donabere.amm.repository.AuthRepository
 import com.donabere.amm.repository.BiometricRepository
@@ -22,6 +23,9 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     private val authRepository = AuthRepository(RetrofitClient.getApiService(application))
     private val biometricRepository = BiometricRepository(RetrofitClient.getApiService(application))
     private val tokenManager = TokenManager(application)
+
+    private val _authResponse = MutableLiveData<AuthResponse>()
+    val authResponse: LiveData<AuthResponse> = _authResponse
 
     private val _loginExitoso = MutableLiveData<Boolean>()
     val loginExitoso: LiveData<Boolean> = _loginExitoso
@@ -48,7 +52,9 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             result.onSuccess { response ->
                 if (!response.token.isNullOrEmpty()) {
                     tokenManager.saveToken(response.token)
-                    // Login exitoso - pasar directo a la siguiente pantalla sin interrupciones
+
+                    _authResponse.value = response
+
                     _loginExitoso.value = true
                 } else {
                     _error.value = "No se recibió un token válido del servidor"
@@ -86,6 +92,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             result.onSuccess { response ->
                 if (!response.token.isNullOrEmpty()) {
                     tokenManager.saveToken(response.token)
+                    _authResponse.value = response
                     _loginExitoso.value = true
                 } else {
                     _error.value = "No se recibió un token válido del servidor"

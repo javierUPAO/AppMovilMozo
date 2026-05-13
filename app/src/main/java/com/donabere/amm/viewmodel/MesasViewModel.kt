@@ -53,7 +53,7 @@ class MesasViewModel(application: Application) : AndroidViewModel(application) {
 
     fun actualizarEstadoMesaLocal(mesaId: Int, ocupada: Boolean) {
         val mesasActuales = _mesas.value?.toMutableList() ?: return
-        val index = mesasActuales.indexOfFirst { it.id == mesaId }
+        val index = mesasActuales.indexOfFirst { it.id.equals(mesaId) }
         if (index != -1) {
             mesasActuales[index] = mesasActuales[index].copy(status = if (ocupada) 1 else 0)
             _mesas.value = mesasActuales
@@ -61,9 +61,9 @@ class MesasViewModel(application: Application) : AndroidViewModel(application) {
     }
 
 
-    private suspend fun obtenerEstadoMesaFirestore(mesaId: Int): String {
+    private suspend fun obtenerEstadoMesaFirestore(mesaId: String): String {
         return try {
-            val doc = mesasRef.document(mesaId.toString()).get().await()
+            val doc = mesasRef.document(mesaId).get().await()
             if (doc.exists()) doc.getString("estado") ?: "LIBRE"
             else "LIBRE"
         } catch (e: Exception) {

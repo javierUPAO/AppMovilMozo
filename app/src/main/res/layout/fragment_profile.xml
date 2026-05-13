@@ -55,7 +55,6 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="12dp"
-                    android:text="Mi Perfil"
                     android:textColor="#1A1A2E"
                     android:textSize="20sp"
                     android:textStyle="bold" />
@@ -276,10 +275,13 @@
                 <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#FDE68A"/>
 
                 <LinearLayout
+                    android:id="@+id/btnLogout"
                     android:layout_width="300dp"
                     android:layout_gravity="center"
                     android:layout_height="wrap_content"
                     android:gravity="center_vertical"
+                    android:clickable="true"
+                    android:focusable="true"
                     android:padding="16dp">
 
                     <ImageView
@@ -289,10 +291,11 @@
                         android:rotation="90"
                         app:tint="#EF4444" />
                     <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="16dp" android:text="Cerrar Sesión" android:textColor="#EF4444" android:textSize="16sp"/>
-                    <ImageButton
+                    <ImageView
                         android:layout_width="24dp"
                         android:background="@android:color/transparent"
-                        android:layout_height="24dp" android:src="@drawable/ic_chevron_right" app:tint="#F59E0B"/>
+                        android:layout_height="24dp" android:src="@drawable/ic_chevron_right"
+                        app:tint="#F59E0B"/>
                 </LinearLayout>
 
             </LinearLayout>

@@ -1,13 +1,13 @@
 package com.donabere.amm.model
 
 import com.donabere.amm.model.enums.TipoNotificacion
-import java.time.LocalDateTime
+import com.google.firebase.Timestamp
 
 data class Notificacion(
-    val id: Int,
+    val id: String,
     val tipo: TipoNotificacion,
     val mensaje: String,
     val leida: Boolean,
-    val fecha: LocalDateTime,
-    val pedidoId: Int
+    val fecha: Timestamp = Timestamp.now(),
+    val pedidoId: String
 )

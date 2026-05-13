@@ -30,7 +30,7 @@ class MesasActivity : AppCompatActivity() {
                 CrearPedidoActivity.newIntent(
                     context  = this,
                     mesasIds = listOf(mesa.id),
-                    mozoId   = 1
+                    mozoId   = "1"
                 )
             )
         } else {

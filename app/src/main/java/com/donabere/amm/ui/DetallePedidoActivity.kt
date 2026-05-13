@@ -29,7 +29,7 @@ class DetallePedidoActivity : AppCompatActivity() {
         const val EXTRA_PEDIDO_ID = "extra_pedido_id"
         const val EXTRA_MESA_ID   = "extra_mesa_id"
 
-        fun newIntent(context: Context, pedidoId: String, mesaId: Int): Intent =
+        fun newIntent(context: Context, pedidoId: String, mesaId: String): Intent =
             Intent(context, DetallePedidoActivity::class.java).apply {
                 putExtra(EXTRA_PEDIDO_ID, pedidoId)
                 putExtra(EXTRA_MESA_ID, mesaId)
