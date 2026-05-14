@@ -6,7 +6,6 @@ import androidx.lifecycle.MutableLiveData
 import com.donabere.amm.model.Cuenta
 import com.donabere.amm.model.DetallePedido
 import com.donabere.amm.model.Pedido
-import com.donabere.amm.model.enums.EstadoCuenta
 import com.donabere.amm.model.enums.EstadoPedido
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await

@@ -43,7 +43,7 @@ class ProfileFragment : Fragment() {
         usuarioId = sharedPreferences.getString("usuario_id", "") ?: ""
 
         letterprofile = obtenerIniciales(userEmail)
-        Log.d("MOZO_DEBUG", "usuarioId=$usuarioId")
+
         profileViewModel.setUsuarioId(usuarioId)
         profileViewModel.cargarMozo()
 
