@@ -2,19 +2,19 @@ package com.donabere.amm.ui.fragment
 
 import android.content.SharedPreferences
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
-import com.donabere.amm.databinding.FragmentProfileBinding
+import com.donabere.amm.databinding.FragmentTurnoBinding
 import com.donabere.amm.viewmodel.TurnoViewModel
-import androidx.core.graphics.toColorInt
 
 class TurnoFragment : Fragment() {
 
-    private var _binding: FragmentProfileBinding? = null
+    private var _binding: FragmentTurnoBinding? = null
     private val binding get() = _binding!!
 
     private val turnoViewModel: TurnoViewModel by viewModels()
@@ -27,7 +27,9 @@ class TurnoFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        _binding = FragmentProfileBinding.inflate(inflater, container, false)
+
+        _binding = FragmentTurnoBinding.inflate(inflater, container, false)
+
         return binding.root
     }
 
@@ -39,8 +41,9 @@ class TurnoFragment : Fragment() {
 
         sharedPreferences = requireContext().getSharedPreferences("app_prefs", 0)
         mozoId = sharedPreferences.getString("usuario_id", "") ?: ""
-
+        Log.d("IdMozo","EL mozoId es : $mozoId")
         turnoViewModel.verificarTurno(mozoId)
+        turnoViewModel.cargarUltimoTurno(mozoId)
     }
     private fun updateTurnoButtons(activo: Boolean) {
 
@@ -48,7 +51,7 @@ class TurnoFragment : Fragment() {
         val blanco = android.graphics.Color.WHITE
 
         // ABRIR
-        if (!activo) {
+        if (activo) {
             binding.btnAbrirTurno.setBackgroundColor(blanco)
             binding.btnAbrirTurno.setStrokeWidth(4)
             binding.btnAbrirTurno.setStrokeColorResource(android.R.color.transparent)
@@ -60,7 +63,7 @@ class TurnoFragment : Fragment() {
         }
 
         // CERRAR
-        if (activo) {
+        if (!activo) {
             binding.btnCerrarTurno.setBackgroundColor(blanco)
             binding.btnCerrarTurno.setStrokeWidth(4)
             binding.btnCerrarTurno.setStrokeColorResource(android.R.color.transparent)
@@ -75,6 +78,25 @@ class TurnoFragment : Fragment() {
 
     private fun setupObservers() {
 
+        turnoViewModel.success.observe(viewLifecycleOwner) { message ->
+
+            message?.let {
+                Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        turnoViewModel.ultimoTurno.observe(viewLifecycleOwner) { turno ->
+
+            binding.totalMesas.text =
+                turno?.totalMesas?.toString() ?: "0"
+
+            binding.totalPedidos.text =
+                turno?.totalPedidos?.toString() ?: "0"
+
+            binding.totalCobrado.text =
+                String.format("%.2f", turno?.totalVendido ?: 0.0)
+        }
+
         turnoViewModel.turnoActivo.observe(viewLifecycleOwner) { turno ->
 
             val activo = turno != null
@@ -82,10 +104,7 @@ class TurnoFragment : Fragment() {
 
             binding.btnAbrirTurno.isEnabled = !activo
             binding.btnCerrarTurno.isEnabled = activo
-        }
-
-        turnoViewModel.isLoading.observe(viewLifecycleOwner) { loading ->
-            binding.progressBar.visibility = if (loading) View.VISIBLE else View.GONE
+            updateTurnoButtons(activo)
         }
 
         turnoViewModel.error.observe(viewLifecycleOwner) { error ->
@@ -108,7 +127,6 @@ class TurnoFragment : Fragment() {
 
             turnoViewModel.abrirTurno(mozoId)
 
-            Toast.makeText(requireContext(), "Turno abierto", Toast.LENGTH_SHORT).show()
         }
 
         binding.btnCerrarTurno.setOnClickListener {
@@ -122,7 +140,6 @@ class TurnoFragment : Fragment() {
 
             turnoViewModel.cerrarTurno(mozoId)
 
-            Toast.makeText(requireContext(), "Turno cerrado", Toast.LENGTH_SHORT).show()
         }
     }
 

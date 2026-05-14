@@ -3,7 +3,9 @@ package com.donabere.amm.repository
 import com.donabere.amm.model.Turno
 import com.donabere.amm.model.enums.EstadoTurno
 import com.donabere.amm.model.response.ResumenTurno
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
 
 
@@ -68,9 +70,30 @@ class TurnoRepository {
     }
 
     suspend fun abrirTurnoSiNoExiste(mozoId: String) {
-        //val existente = obtenerTurnoActivoPorMozo(mozoId)
+        val calendar = java.util.Calendar.getInstance()
 
-       // if (existente != null) return
+        calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        calendar.set(java.util.Calendar.MINUTE, 0)
+        calendar.set(java.util.Calendar.SECOND, 0)
+        calendar.set(java.util.Calendar.MILLISECOND, 0)
+
+        val inicioDia = com.google.firebase.Timestamp(calendar.time)
+
+        calendar.add(java.util.Calendar.DAY_OF_MONTH, 1)
+
+        val finDia = com.google.firebase.Timestamp(calendar.time)
+
+        val snapshot = turnosRef
+            .whereEqualTo("mozoId", mozoId)
+            .whereGreaterThanOrEqualTo("inicio", inicioDia)
+            .whereLessThan("inicio", finDia)
+            .limit(1)
+            .get()
+            .await()
+
+        if (!snapshot.isEmpty) {
+            throw Exception("Ya existe un turno registrado hoy")
+        }
 
         val turno = hashMapOf(
             "mozoId" to mozoId,
@@ -82,14 +105,21 @@ class TurnoRepository {
             "totalVendido" to 0.0
         )
 
+
         turnosRef.add(turno).await()
     }
 
-    suspend fun obtenerResumenPorMozo(mozoId: String): ResumenTurno {
+    suspend fun obtenerResumenPorTurno(    turno: Turno
+    ): ResumenTurno {
         return try {
 
             val snapshot = db.collection("pedidos")
-                .whereEqualTo("mozoId", mozoId)
+                .whereEqualTo("mozoId", turno.mozoId)
+                .whereGreaterThanOrEqualTo("creadoEn", turno.inicio?:Timestamp.now())
+                .whereLessThanOrEqualTo(
+                    "creadoEn",
+                    turno.fin ?: Timestamp.now()
+                )
                 .get()
                 .await()
 
@@ -134,6 +164,28 @@ class TurnoRepository {
         } catch (e: Exception) {
             throw e
         }
+    }
+    suspend fun obtenerUltimoTurnoPorMozo(mozoId: String): Turno? {
+
+        val snapshot = turnosRef
+            .whereEqualTo("mozoId", mozoId)
+            .orderBy("inicio", Query.Direction.DESCENDING)
+            .limit(1)
+            .get()
+            .await()
+
+        val doc = snapshot.documents.firstOrNull() ?: return null
+
+        return Turno(
+            id = doc.id,
+            mozoId = doc.getString("mozoId") ?: "",
+            inicio = doc.getTimestamp("inicio"),
+            fin = doc.getTimestamp("fin"),
+            estado = parseEstado(doc.getString("estado")),
+            totalMesas = (doc.getLong("totalMesas") ?: 0).toInt(),
+            totalPedidos = (doc.getLong("totalPedidos") ?: 0).toInt(),
+            totalVendido = doc.getDouble("totalVendido") ?: 0.0
+        )
     }
     private fun parseEstado(raw: String?): EstadoTurno {
         return when (raw) {
