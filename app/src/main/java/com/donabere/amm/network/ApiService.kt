@@ -2,6 +2,7 @@ package com.donabere.amm.network
 
 import com.donabere.amm.model.Dish
 import com.donabere.amm.model.Bebida
+import com.donabere.amm.model.Producto
 import com.donabere.amm.model.response.AuthResponse
 import com.donabere.amm.model.request.LoginRequest
 import com.donabere.amm.model.request.RegisterFingerprintRequest
@@ -30,4 +31,7 @@ interface ApiService {
 
     @GET("admin/drink/all") 
     suspend fun obtenerBebidas(): Response<List<Bebida>>
+
+    @GET("admin/producto/all")
+    suspend fun obtenerProductos(): Response<List<Producto>>
 }

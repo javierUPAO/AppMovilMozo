@@ -10,11 +10,12 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
-import com.donabere.amm.adapter.BebidasAdapter
+import com.donabere.amm.adapter.ProductoAdapter
 import com.donabere.amm.databinding.FragmentBebidasBinding
+import com.donabere.amm.model.enums.TipoProducto
 import com.donabere.amm.repository.PedidoRepository
 import com.donabere.amm.ui.SeleccionProductoActivity
-import com.donabere.amm.viewmodel.BebidasViewModel
+import com.donabere.amm.viewmodel.ProductoViewModel
 import kotlinx.coroutines.launch
 
 class BebidasFragment : Fragment() {
@@ -22,8 +23,8 @@ class BebidasFragment : Fragment() {
     private var _binding: FragmentBebidasBinding? = null
     private val binding get() = _binding!!
 
-    private val viewModel: BebidasViewModel by viewModels()
-    private lateinit var adapter: BebidasAdapter
+    private val viewModel: ProductoViewModel by viewModels()
+    private lateinit var adapter: ProductoAdapter
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -38,24 +39,20 @@ class BebidasFragment : Fragment() {
 
         setupRecyclerView()
         observeViewModel()
-        viewModel.cargarBebidas()
+        viewModel.cargarProductosPorTipo(TipoProducto.BEBIDA)
     }
 
     private fun setupRecyclerView() {
-        adapter = BebidasAdapter(emptyList()) { bebida ->
-            // Si viene de SeleccionProductoActivity → devolver resultado
+        adapter = ProductoAdapter(emptyList()) { producto ->
             if (activity is SeleccionProductoActivity) {
                 parentFragmentManager.setFragmentResult(
                     SeleccionProductoActivity.RESULT_BEBIDA,
                     bundleOf(
-                        SeleccionProductoActivity.EXTRA_PRODUCTO_ID     to bebida.id,
-                        SeleccionProductoActivity.EXTRA_PRODUCTO_NOMBRE to bebida.name,
-                        SeleccionProductoActivity.EXTRA_PRODUCTO_PRECIO to bebida.price
+                        SeleccionProductoActivity.EXTRA_PRODUCTO_ID     to producto.id,
+                        SeleccionProductoActivity.EXTRA_PRODUCTO_NOMBRE to producto.nombre,
+                        SeleccionProductoActivity.EXTRA_PRODUCTO_PRECIO to producto.precio
                     )
                 )
-            } else {
-                // Comportamiento original en MenuActivity → solo Toast
-                Toast.makeText(requireContext(), "Bebida seleccionada: ${bebida.name}", Toast.LENGTH_SHORT).show()
             }
         }
         binding.rvBebidas.layoutManager = GridLayoutManager(requireContext(),2)
@@ -63,8 +60,8 @@ class BebidasFragment : Fragment() {
     }
 
     private fun observeViewModel() {
-        viewModel.bebidas.observe(viewLifecycleOwner) { bebidas ->
-            adapter.updateData(bebidas)
+        viewModel.productos.observe(viewLifecycleOwner) { productos ->
+            adapter.updateData(productos)
         }
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
             binding.pbBebidasLoading.visibility = if (isLoading) View.VISIBLE else View.GONE
