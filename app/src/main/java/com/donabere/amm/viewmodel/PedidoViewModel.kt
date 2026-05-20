@@ -4,7 +4,6 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.switchMap
 import androidx.lifecycle.viewModelScope
 import com.donabere.amm.model.DetallePedido
 import com.donabere.amm.repository.PedidoRepository
@@ -15,17 +14,10 @@ class PedidoViewModel(
     private val mozoId: String
 ) : ViewModel() {
 
-    private val _pedidoId = MutableLiveData<String?>(null)
-    val pedidoId: LiveData<String?> = _pedidoId
-
-    val detalles: LiveData<List<DetallePedido>> = _pedidoId.switchMap { id ->
-        if (id != null) repository.getDetallesByPedido(id)
-        else MutableLiveData(emptyList())
-    }
-
+    // ─── Estado UI ────────────────────────────────────────────────────────────
     sealed class UiState {
-        object Idle        : UiState()
-        object Loading     : UiState()
+        object Idle          : UiState()
+        object Loading       : UiState()
         object PedidoEnviado : UiState()
         data class Success(val mensaje: String) : UiState()
         data class Error(val mensaje: String)   : UiState()
@@ -34,7 +26,19 @@ class PedidoViewModel(
     private val _uiState = MutableLiveData<UiState>(UiState.Idle)
     val uiState: LiveData<UiState> = _uiState
 
+    // ─── Datos observables ────────────────────────────────────────────────────
+    val detalles: LiveData<List<DetallePedido>> = repository.observarDetalles()
+    val pedido:   LiveData<*>                   = repository.observarPedido()
+
+    private val _pedidoId = MutableLiveData<String?>(null)
+    val pedidoId: LiveData<String?> = _pedidoId
+
+    private lateinit var mesasIds: List<String>
+
+    // ─── Inicializar ─────────────────────────────────────────────────────────
+
     fun iniciarPedido(mesasIds: List<String>) {
+        this.mesasIds = mesasIds
         viewModelScope.launch {
             _uiState.value = UiState.Loading
             try {
@@ -47,8 +51,9 @@ class PedidoViewModel(
         }
     }
 
+    // ─── Carrito ──────────────────────────────────────────────────────────────
+
     fun agregarProducto(
-        mesasIds: List<String>,
         productoId: String,
         nombreProducto: String,
         precioUnitario: Double,
@@ -58,92 +63,77 @@ class PedidoViewModel(
         viewModelScope.launch {
             _uiState.value = UiState.Loading
             try {
+                // Si no hay borrador aún, crearlo ahora
                 val id = _pedidoId.value
                     ?: repository.crearPedidoBorrador(mesasIds, mozoId)
                         .also { _pedidoId.value = it }
 
-                val result = repository.agregarDetalle(
+                repository.agregarDetalle(
                     pedidoId       = id,
                     productoId     = productoId,
                     nombreProducto = nombreProducto,
                     precioUnitario = precioUnitario,
                     cantidad       = cantidad,
                     nota           = nota
-                )
-
-                result.fold(
+                ).fold(
                     onSuccess = { _uiState.value = UiState.Idle },
                     onFailure = { e ->
-                        _uiState.value = UiState.Error(e.message ?: "Error al agregar producto")
+                        _uiState.value = UiState.Error(e.message ?: "Error al agregar")
                     }
                 )
             } catch (e: Exception) {
-                _uiState.value = UiState.Error("Error al agregar producto: ${e.message}")
+                _uiState.value = UiState.Error("Error: ${e.message}")
             }
         }
     }
 
     fun actualizarCantidad(detalle: DetallePedido, nuevaCantidad: Int) {
         viewModelScope.launch {
-            // Si está incrementando, validar stock antes de actualizar
+            // Si incrementa, validar stock
             if (nuevaCantidad > detalle.cantidad) {
                 val stock = repository.obtenerStock(detalle.productoId)
                 if (stock != null && nuevaCantidad > stock) {
-                    _uiState.value = UiState.Error(
-                        "Stock insuficiente. Máximo disponible: $stock"
-                    )
+                    _uiState.value = UiState.Error("Stock máximo disponible: $stock")
                     return@launch
                 }
             }
-            try {
-                repository.actualizarCantidadDetalle(detalle, nuevaCantidad)
-            } catch (e: Exception) {
-                _uiState.value = UiState.Error("Error al actualizar cantidad: ${e.message}")
-            }
+            repository.actualizarCantidadDetalle(detalle, nuevaCantidad)
         }
     }
 
     fun actualizarNota(detalle: DetallePedido, nuevaNota: String) {
-        viewModelScope.launch {
-            try {
-                repository.actualizarNotaDetalle(detalle, nuevaNota)
-            } catch (e: Exception) {
-                _uiState.value = UiState.Error("Error al actualizar nota: ${e.message}")
-            }
-        }
+        repository.actualizarNotaDetalle(detalle, nuevaNota)
     }
 
     fun eliminarDetalle(detalle: DetallePedido) {
-        viewModelScope.launch {
-            try {
-                repository.eliminarDetalle(detalle)
-            } catch (e: Exception) {
-                _uiState.value = UiState.Error("Error al eliminar producto: ${e.message}")
-            }
-        }
+        repository.eliminarDetalle(detalle)
     }
+
+    fun restaurarDetalle(detalle: DetallePedido) {
+        repository.restaurarDetalle(detalle)
+    }
+
+    // ─── Confirmar ────────────────────────────────────────────────────────────
 
     fun confirmarPedido() {
         val id = _pedidoId.value ?: run {
-            _uiState.value = UiState.Error("No hay un pedido activo")
+            _uiState.value = UiState.Error("No hay pedido activo")
             return
         }
-
         viewModelScope.launch {
             _uiState.value = UiState.Loading
-            val result = repository.confirmarPedido(id)
-            result.fold(
+            repository.confirmarPedido(id).fold(
                 onSuccess = { _uiState.value = UiState.PedidoEnviado },
                 onFailure = { e ->
-                    _uiState.value = UiState.Error(e.message ?: "Error al confirmar pedido")
+                    _uiState.value = UiState.Error(e.message ?: "Error al confirmar")
                 }
             )
         }
     }
 
-    fun resetUiState() {
-        _uiState.value = UiState.Idle
-    }
+    fun resetUiState() { _uiState.value = UiState.Idle }
+
+    // ─── Factory ──────────────────────────────────────────────────────────────
 
     class Factory(
         private val repository: PedidoRepository,
@@ -151,10 +141,8 @@ class PedidoViewModel(
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            if (modelClass.isAssignableFrom(PedidoViewModel::class.java)) {
-                return PedidoViewModel(repository, mozoId) as T
-            }
-            throw IllegalArgumentException("ViewModel desconocido")
+            require(modelClass.isAssignableFrom(PedidoViewModel::class.java))
+            return PedidoViewModel(repository, mozoId) as T
         }
     }
 }
