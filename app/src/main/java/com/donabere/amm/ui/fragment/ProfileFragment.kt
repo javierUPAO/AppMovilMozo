@@ -71,26 +71,47 @@ class ProfileFragment : Fragment() {
                 return@setOnClickListener
             }
 
-            // Mostrar prompt biométrico PRIMERO
+            // Mostrar BiometricPrompt directamente para registrar
             BiometricUtils.showBiometricPrompt(
                 requireActivity(),
                 "Registrar Huella",
-                "Toca tu huella para registrarla",
+                "Coloca tu dedo en el sensor para registrar tu huella",
                 "Cancelar",
                 object : BiometricUtils.BiometricCallback {
                     override fun onAuthenticationSuccess() {
-                        // Una vez autenticado, proceder con el registro
+                        // Una vez autenticado, proceder con el registro local
                         profileViewModel.registerFingerprint(userEmail)
                     }
 
                     override fun onAuthenticationError(errorMessage: String) {
                         binding.tvError.visibility = View.VISIBLE
-                        binding.tvError.text = "Error: $errorMessage"
+                        
+                        val displayMessage = if (errorMessage.contains("Demasiados intentos", ignoreCase = true) || 
+                                               errorMessage.contains("lockout", ignoreCase = true)) {
+                            "Biometría bloqueada temporalmente.\n\n" +
+                            "Por favor:\n" +
+                            "1. Espera 30-60 segundos\n" +
+                            "2. O reinicia tu teléfono"
+                        } else if (errorMessage.contains("no hay huella", ignoreCase = true) ||
+                                  errorMessage.contains("none_enrolled", ignoreCase = true)) {
+                            "No hay huella registrada en tu dispositivo.\n\n" +
+                            "Por favor ve a:\n" +
+                            "Configuración → Seguridad → Huella Dactilar\n" +
+                            "y registra tu huella en el sistema primero."
+                        } else {
+                            "Error: $errorMessage"
+                        }
+                        
+                        binding.tvError.text = displayMessage
                     }
 
                     override fun onAuthenticationFailed() {
                         binding.tvError.visibility = View.VISIBLE
-                        binding.tvError.text = "Huella no reconocida"
+                        binding.tvError.text = "Huella no reconocida.\n\n" +
+                                              "Consejos:\n" +
+                                              "1. Limpia el sensor\n" +
+                                              "2. Presiona bien el dedo\n" +
+                                              "3. Usa el mismo dedo que registraste en el sistema"
                     }
                 }
             )

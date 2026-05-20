@@ -45,6 +45,7 @@
 
     <!-- Campo email -->
     <TextView
+            android:id="@+id/tvCorreoLabel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="CORREO"
@@ -78,6 +79,7 @@
 
     <!-- Campo contraseña -->
     <TextView
+            android:id="@+id/tvContrasenaLabel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="CONTRASEÑA"
@@ -122,36 +124,7 @@
             android:backgroundTint="#F59E0B"
             android:layout_marginBottom="12dp"/>
 
-    <!-- Separador -->
-    <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="12dp">
-        <View android:layout_width="0dp" android:layout_height="1dp"
-                android:layout_weight="1" android:background="#333333"/>
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:text="o continúa con" android:textSize="12sp"
-                android:textColor="#555555" android:layout_marginHorizontal="10dp"/>
-        <View android:layout_width="0dp" android:layout_height="1dp"
-                android:layout_weight="1" android:background="#333333"/>
-    </LinearLayout>
-
-    <!-- Botón huella -->
-    <Button
-            android:id="@+id/btnIngresarHuella"
-            android:layout_width="match_parent"
-            android:layout_height="52dp"
-            android:text="Ingresar con huella"
-            android:textSize="14sp"
-            android:textColor="#16A34A"
-            android:backgroundTint="#252540"
-            android:strokeColor="#16A34A"
-            android:strokeWidth="1"
-            android:layout_marginBottom="16dp"
-            android:visibility="gone"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
+    <!-- Separador removido -->
 
     <ProgressBar
             android:id="@+id/progressBar"

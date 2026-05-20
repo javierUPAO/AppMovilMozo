@@ -19,7 +19,29 @@ object BiometricUtils {
                 BiometricManager.Authenticators.BIOMETRIC_STRONG
                     or BiometricManager.Authenticators.DEVICE_CREDENTIAL
             )
-            canAuthenticate == BiometricManager.BIOMETRIC_SUCCESS
+            when (canAuthenticate) {
+                BiometricManager.BIOMETRIC_SUCCESS -> true
+                BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE -> {
+                    Log.w(TAG, "Hardware biométrico no disponible")
+                    false
+                }
+                BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> {
+                    Log.w(TAG, "Dispositivo sin sensor biométrico")
+                    false
+                }
+                BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> {
+                    Log.w(TAG, "No hay huella registrada en el dispositivo")
+                    false
+                }
+                BiometricManager.BIOMETRIC_ERROR_SECURITY_UPDATE_REQUIRED -> {
+                    Log.w(TAG, "Se requiere actualización de seguridad")
+                    false
+                }
+                else -> {
+                    Log.w(TAG, "Estado biométrico desconocido: $canAuthenticate")
+                    false
+                }
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error verificando biometría: ${e.message}")
             false
@@ -53,8 +75,21 @@ object BiometricUtils {
 
                     override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
                         super.onAuthenticationError(errorCode, errString)
-                        Log.e(TAG, "Error biométrico: $errString")
-                        callback.onAuthenticationError(errString.toString())
+                        Log.e(TAG, "Error biométrico (Code: $errorCode): $errString")
+                        
+                        // Mapear errores específicos
+                        val messageToShow = when (errorCode) {
+                            BiometricPrompt.ERROR_HW_NOT_PRESENT -> "Tu dispositivo no tiene sensor de huella"
+                            BiometricPrompt.ERROR_HW_UNAVAILABLE -> "El sensor de huella no está disponible en este momento"
+                            BiometricPrompt.ERROR_NO_BIOMETRICS -> "No hay huella registrada en el dispositivo"
+                            BiometricPrompt.ERROR_NO_DEVICE_CREDENTIAL -> "Debes tener huella o PIN registrado"
+                            BiometricPrompt.ERROR_LOCKOUT -> "Demasiados intentos fallidos. Espera 30 segundos e intenta de nuevo"
+                            BiometricPrompt.ERROR_LOCKOUT_PERMANENT -> "Biometría bloqueada. Debes reiniciar el dispositivo o reintentar después"
+                            BiometricPrompt.ERROR_TIMEOUT -> "Tiempo de espera agotado. Intenta de nuevo"
+                            BiometricPrompt.ERROR_NEGATIVE_BUTTON -> "Cancelado por el usuario"
+                            else -> errString.toString()
+                        }
+                        callback.onAuthenticationError(messageToShow)
                     }
 
                     override fun onAuthenticationFailed() {

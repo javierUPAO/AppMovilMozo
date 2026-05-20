@@ -20,7 +20,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:id="@+id/tvDialogSubtitle"
-        android:text="¿Deseas registrar tu huella dactilar para un acceso más rápido?"
+        android:text="¿Deseas registrar tu huella dactilar para un acceso más rápido?\n\nPrimero asegúrate de que tu huella esté registrada en:\nConfiguraci\u00f3n → Seguridad → Huella Dactilar"
         android:textSize="14sp"
         android:textColor="#AAAAAA"
         android:layout_marginBottom="24dp"/>

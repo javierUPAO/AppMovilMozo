@@ -2,6 +2,7 @@ package com.donabere.amm.viewmodel
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -11,17 +12,15 @@ import com.donabere.amm.model.request.RegisterFingerprintRequest
 import com.donabere.amm.network.RetrofitClient
 import com.donabere.amm.repository.BiometricRepository
 import com.donabere.amm.repository.MozoRepository
-import com.donabere.amm.utils.JWTSigner
 import com.donabere.amm.utils.KeystoreManager
 import com.donabere.amm.utils.TokenManager
 import kotlinx.coroutines.launch
 
 class ProfileViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val biometricRepository = BiometricRepository(RetrofitClient.getApiService(application))
     private val keystoreManager = KeystoreManager
-
-    private val  mozoRepository = MozoRepository()
+    private val biometricRepository = BiometricRepository(RetrofitClient.getApiService(application))
+    private val mozoRepository = MozoRepository()
 
     private var usuarioId: String = ""
 
@@ -76,7 +75,13 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                // 1. Generar clave RSA en Keystore
+                // 1. Limpiar huella anterior si existe
+                if (keystoreManager.hasFingerprintKey()) {
+                    keystoreManager.deleteFingerprintKey()
+                    Log.d("ProfileViewModel", "Huella anterior eliminada")
+                }
+                
+                // 2. Generar clave RSA en Keystore
                 val publicKeyPem = keystoreManager.generateFingerprintKeyPair()
                 if (publicKeyPem == null) {
                     _error.value = "Error al generar clave de seguridad"
@@ -84,31 +89,31 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                     return@launch
                 }
 
-                // 2. Enviar al backend
-                val request = RegisterFingerprintRequest(
-                    email = email,
-                    public_key = publicKeyPem
-                )
+                Log.d("ProfileViewModel", "Clave de huella generada localmente, enviando al backend...")
+                
+                // 3. Enviar clave pública al backend
+                val request = RegisterFingerprintRequest(email, publicKeyPem)
                 val result = biometricRepository.registerFingerprint(request)
-
+                
                 result.onSuccess { response ->
+                    Log.d("ProfileViewModel", "✓ Huella registrada en backend exitosamente")
                     _success.value = "Huella registrada exitosamente"
                     _fingerprintStatus.value = FingerprintStatus.REGISTERED
                     _isLoading.value = false
-                }
-
-                result.onFailure { throwable ->
-                    // Si falla en backend, eliminar la clave del Keystore
+                }.onFailure { exception ->
+                    Log.e("ProfileViewModel", "❌ Error registrando en backend: ${exception.message}")
                     keystoreManager.deleteFingerprintKey()
-                    _error.value = "Error: ${throwable.message}"
+                    _error.value = "Error al registrar huella: ${exception.message}"
                     _fingerprintStatus.value = FingerprintStatus.NOT_REGISTERED
                     _isLoading.value = false
                 }
+                
             } catch (e: Exception) {
                 keystoreManager.deleteFingerprintKey()
                 _error.value = "Error: ${e.message}"
                 _fingerprintStatus.value = FingerprintStatus.NOT_REGISTERED
                 _isLoading.value = false
+                Log.e("ProfileViewModel", "Error registrando huella: ${e.message}")
             }
         }
     }

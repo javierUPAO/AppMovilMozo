@@ -40,6 +40,7 @@ dependencies {
     // Base (las que venían por defecto)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
+
     implementation(libs.material)
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
@@ -59,9 +60,9 @@ dependencies {
     // implementation("androidx.room:room-runtime:2.6.1")
     // implementation("androidx.room:room-ktx:2.6.1")
 
-    // Firebase
+    // 🔥 Firebase (Corregido)
     implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
-    implementation("com.google.firebase:firebase-firestore-ktx")
+    implementation("com.google.firebase:firebase-firestore") // Modificado: sin -ktx
 
     // Tests
     testImplementation(libs.junit)
@@ -86,11 +87,14 @@ dependencies {
 
     // Serialization
     implementation("org.json:json:20230227")
+
     // Image loading
     implementation("io.coil-kt:coil:2.6.0")
 
+    // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
-    implementation("com.google.android.material:material:1.11.0")
-
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+
+    // Material Design
+    implementation("com.google.android.material:material:1.11.0")
 }
