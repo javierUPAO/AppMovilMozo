@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "713461229859",
+    "project_id": "donaberesapp",
+    "storage_bucket": "donaberesapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:713461229859:android:9f1fa1a9b9f972a4964496",
+        "android_client_info": {
+          "package_name": "com.donabere.amm"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCFt7AxLSSEhBjhdex6s7Atpq4gxUmCOuA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Layout de CrearPedidoActivity
+    ┌─────────────────────────────────┐
+    │  Toolbar  (Mesa X)              │
+    ├─────────────────────────────────┤
+    │  TabLayout  [Platos] [Bebidas]  │
+    │  ViewPager2  (PlatosFragment    │
+    │               / BebidasFragment)│
+    │                                 │
+    │  ← menú ocupa todo el espacio→  │
+    │                                 │
+    ├═════════════════════════════════╡ ← BottomSheet (peek 72dp)
+    │  🛒 3 ítems        Total S/55   │  collapsed
+    │ ─────────────────────────────── │
+    │  RecyclerView carrito           │  expanded
+    │  [Enviar a cocina]              │
+    └─────────────────────────────────┘
+-->
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/background_color">
+
+    <!-- ══ AppBar ══════════════════════════════════════════════════════════ -->
+    <com.google.android.material.appbar.AppBarLayout
+            android:id="@+id/app_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+        <com.google.android.material.appbar.MaterialToolbar
+                android:id="@+id/toolbar"
+                android:layout_width="match_parent"
+                android:layout_height="?attr/actionBarSize"
+                app:navigationIcon="@drawable/ic_arrow_back"
+                app:title="Nuevo pedido"
+                app:titleTextColor="@color/white" />
+
+        <!-- Tabs Platos / Bebidas -->
+        <com.google.android.material.tabs.TabLayout
+                android:id="@+id/tab_categorias"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:tabIndicatorColor="@color/primary_color"
+                app:tabSelectedTextColor="@color/primary_color"
+                app:tabTextColor="@color/text_secondary" />
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- ══ Contenido del menú (ViewPager2) ════════════════════════════════ -->
+    <androidx.viewpager2.widget.ViewPager2
+            android:id="@+id/vp_menu"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+
+    <!-- ══ BottomSheet Carrito ════════════════════════════════════════════ -->
+    <LinearLayout
+            android:id="@+id/bottom_sheet_carrito"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:background="@color/surface_variant"
+            android:elevation="8dp"
+            app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior">
+
+        <!-- Handle / Peek bar: se ve siempre -->
+        <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="72dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:background="@color/surface_variant">
+
+            <!-- Indicador drag -->
+            <View
+                    android:layout_width="40dp"
+                    android:layout_height="4dp"
+                    android:background="#CCCCCC"
+                    android:layout_gravity="top"
+                    android:layout_marginTop="8dp" />
+
+            <!-- Contador de ítems -->
+            <TextView
+                    android:id="@+id/tv_contador_carrito"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="🛒"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginStart="12dp" />
+
+            <!-- ProgressBar inline -->
+            <ProgressBar
+                    android:id="@+id/progress_bar"
+                    style="?android:attr/progressBarStyleSmall"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:visibility="gone"
+                    android:layout_marginEnd="8dp" />
+
+            <!-- Total -->
+            <TextView
+                    android:id="@+id/tv_total_pedido"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Total: S/ 0.00"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/primary_color" />
+
+        </LinearLayout>
+
+        <!-- Separador -->
+        <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/divider_color" />
+
+        <!-- Label mesa -->
+        <TextView
+                android:id="@+id/tv_mesas_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Mesa --"
+                android:textSize="14sp"
+                android:textColor="@color/text_secondary"
+                android:paddingStart="16dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="4dp" />
+
+        <!-- Estado vacío -->
+        <TextView
+                android:id="@+id/tv_carrito_vacio"
+                android:layout_width="match_parent"
+                android:layout_height="120dp"
+                android:gravity="center"
+                android:text="Aún no hay productos.\nNavega el menú y toca ＋ para agregar."
+                android:textSize="14sp"
+                android:textColor="@color/text_secondary"
+                android:visibility="visible" />
+
+        <!-- Lista de ítems del carrito -->
+        <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_carrito"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:clipToPadding="false"
+                android:paddingBottom="8dp"
+                android:visibility="gone" />
+
+        <!-- Botón enviar a cocina -->
+        <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_enviar_cocina"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="Enviar a cocina"
+                android:textSize="16sp"
+                android:enabled="false"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:layout_marginBottom="16dp"
+                android:layout_marginTop="8dp"
+                app:backgroundTint="@color/primary_color" />
+
+    </LinearLayout>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

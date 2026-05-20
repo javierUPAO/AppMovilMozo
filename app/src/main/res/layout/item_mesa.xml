@@ -1,0 +1,81 @@
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="170dp"
+    android:layout_height="170dp"
+    android:layout_margin="8dp"
+    app:cardCornerRadius="12dp"
+    android:background="@android:color/transparent"
+    app:cardElevation="4dp">
+
+    <LinearLayout
+
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="#FFFF"
+        android:padding="10dp"
+        android:clickable="false"
+        android:focusable="false">
+
+        <!-- ICONO + ID CENTRADO -->
+        <FrameLayout
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:clickable="false"
+            android:focusable="false">
+
+            <ImageView
+                android:id="@+id/ivIconoMesa"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:src="@drawable/ic_table_new"
+                android:scaleType="fitCenter"
+                android:clickable="false"
+                />
+
+            <TextView
+                android:id="@+id/tvIdMesa"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:text="m1"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:textColor="#616161"
+                    android:clickable="false"
+                    android:focusable="false"/>
+            <TextView
+                android:id="@+id/tvEstado"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                    android:clickable="false"
+                    android:focusable="false"/>
+        </FrameLayout>
+
+        <!-- TEXTO ABAJO -->
+        <TextView
+            android:id="@+id/tvCapacidad"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textStyle="bold"
+            android:textColor="#333333"
+            tools:text="3"
+                android:clickable="false"
+                android:focusable="false"
+            />
+        <TextView
+            android:id="@+id/tvCapacidadTexto"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textStyle="bold"
+            android:textColor="#333333"
+            tools:text="Personas"
+                android:clickable="false"
+                android:focusable="false"
+            />
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

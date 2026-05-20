@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="#1A1A2E">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/tvDialogTitle"
+        android:text="Registrar Huella Dactilar"
+        android:textSize="20sp"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold"
+        android:layout_marginBottom="16dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/tvDialogSubtitle"
+        android:text="¿Deseas registrar tu huella dactilar para un acceso más rápido?\n\nPrimero asegúrate de que tu huella esté registrada en:\nConfiguraci\u00f3n → Seguridad → Huella Dactilar"
+        android:textSize="14sp"
+        android:textColor="#AAAAAA"
+        android:layout_marginBottom="24dp"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="16dp">
+
+        <ProgressBar
+            android:id="@+id/pbRegisterBiometric"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="16dp"
+            android:visibility="gone"/>
+
+        <TextView
+            android:id="@+id/tvBiometricStatus"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="14sp"
+            android:textColor="#AAAAAA"
+            android:gravity="center_vertical"/>
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btnLoginBiometric"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="🔐 Loguear con Huella"
+        android:textSize="16sp"
+        android:backgroundTint="#2563EB"
+        android:layout_marginBottom="8dp"
+        android:visibility="gone"/>
+
+    <Button
+        android:id="@+id/btnRegisterBiometric"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="Registrar Huella"
+        android:textSize="16sp"
+        android:backgroundTint="#16A34A"
+        android:layout_marginBottom="8dp"/>
+
+    <Button
+        android:id="@+id/btnDeleteBiometric"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="🗑️ Borrar Huella Actual"
+        android:textSize="16sp"
+        android:backgroundTint="#DC2626"
+        android:layout_marginBottom="8dp"
+        android:visibility="gone"/>
+
+    <Button
+        android:id="@+id/btnSkipBiometric"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="Saltar por Ahora"
+        android:textSize="16sp"
+        android:backgroundTint="#666666"
+        android:layout_marginBottom="8dp"/>
+
+</LinearLayout>

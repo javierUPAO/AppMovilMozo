@@ -1,3 +1,12 @@
 <resources>
-    <string name="app_name">amm</string>
+    <string name="app_name">Bere Mozos</string>
+    <string name="header_mesas_title">LISTA DE MESAS</string>
+    <string name="header_mesas_subtitle">Toca una mesa para iniciar un pedido</string>
+    <string name="header_menu_title">MENU</string>
+    <string name="header_menu_subtitle">Agrega platos al pedido</string>
+    <string name="header_notifications_title">NOTIFICACIONES</string>
+    <string name="header_notifications_subtitle">Tus alertas y mensajes</string>
+    <string name="header_profile_title">PERFIL</string>
+    <string name="header_profile_subtitle">Gestiona tu cuenta y seguridad</string>
+    <string name="image_base_url">https://backend-6sff.onrender.com</string>
 </resources>

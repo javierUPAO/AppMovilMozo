@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="8dp"
+    android:clipToOutline="true"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="6dp">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/clDishContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="12dp">
+
+        <!-- Imagen con borde naranja -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cvImageContainer"
+            android:layout_width="0dp"
+            android:layout_height="180dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="0dp"
+            app:cardBackgroundColor="@color/orange_primary"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <ImageView
+                android:id="@+id/ivDishImage"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="Imagen del plato"
+                android:scaleType="centerCrop"
+                tools:srcCompat="@drawable/ic_nav_menu" />
+        </androidx.cardview.widget.CardView>
+
+        <!-- Título en naranja -->
+        <TextView
+            android:id="@+id/tvDishTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/orange_primary"
+            android:maxLines="2"
+            android:ellipsize="end"
+            app:layout_constraintTop_toBottomOf="@+id/cvImageContainer"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            tools:text="Alitas de Pollo traidas de Gallina" />
+
+        <!-- Descripción gris claro -->
+        <TextView
+            android:id="@+id/tvDishDescription"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:textSize="12sp"
+            android:textColor="#A0A0A0"
+            android:maxLines="1"
+            android:ellipsize="end"
+            app:layout_constraintTop_toBottomOf="@+id/tvDishTitle"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/tvDishStock"
+            android:layout_marginEnd="8dp"
+            tools:text="Plato de fondo" />
+
+        <!-- Stock a la derecha -->
+        <TextView
+            android:id="@+id/tvDishStock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:textSize="12sp"
+            android:textColor="#A0A0A0"
+            android:textStyle="bold"
+            app:layout_constraintTop_toBottomOf="@+id/tvDishTitle"
+            app:layout_constraintEnd_toEndOf="parent"
+            tools:text="Stock: 50" />
+
+        <!-- Precio en grande y oscuro -->
+        <TextView
+            android:id="@+id/tvDishPrice"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="@android:color/black"
+            app:layout_constraintTop_toBottomOf="@+id/tvDishDescription"
+            app:layout_constraintStart_toStartOf="parent"
+            tools:text="S/ 18.20" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Overlay Agotado -->
+    <FrameLayout
+        android:id="@+id/flOutStockOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#4D000000"
+        android:visibility="gone">
+
+        <!-- Botón AGOTADO -->
+        <com.google.android.material.button.MaterialButton
+            android:layout_width="160dp"
+            android:layout_height="48dp"
+            android:text="AGOTADO"
+            android:textColor="@android:color/white"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:layout_gravity="center"
+            android:elevation="12dp"
+            app:backgroundTint="@color/orange_primary"
+            app:cornerRadius="10dp"
+            app:rippleColor="@android:color/transparent" />
+    </FrameLayout>
+
+</androidx.cardview.widget.CardView>

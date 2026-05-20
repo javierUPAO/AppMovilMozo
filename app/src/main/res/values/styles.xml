@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="ShapeAppearance.Amm" parent="ShapeAppearance.Material3.SmallComponent" />
+
+    <style name="ShapeAppearance.Amm.BottomNavActiveIndicator" parent="ShapeAppearance.Amm">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+</resources>
