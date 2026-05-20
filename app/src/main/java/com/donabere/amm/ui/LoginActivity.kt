@@ -2,6 +2,7 @@ package com.donabere.amm.ui
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -10,6 +11,7 @@ import com.donabere.amm.viewmodel.LoginViewModel
 import com.donabere.amm.utils.BiometricUtils
 import com.donabere.amm.utils.KeystoreManager
 import androidx.core.content.edit
+import com.google.firebase.firestore.FirebaseFirestore
 
 class LoginActivity : AppCompatActivity() {
 
@@ -103,16 +105,41 @@ class LoginActivity : AppCompatActivity() {
     private fun setupObservers() {
 
         loginViewModel.authResponse.observe(this) { response ->
+            val usuarioIdBackend = response.id.toString()
+            val sharedPreferences = getSharedPreferences("app_prefs", MODE_PRIVATE)
 
-            val sharedPreferences = getSharedPreferences("app_prefs", 0)
+            // 1. Guardamos los datos básicos
+            sharedPreferences.edit()
+                .putString("user_email", binding.etUsuario.text.toString())
+                .putString("usuario_id", usuarioIdBackend)
+                .apply()
 
-            sharedPreferences.edit {
-                putString("user_email", binding.etUsuario.text.toString())
-                    .putString("usuario_id", response.id.toString())
-            }
+            // 2. Buscamos el ID real ("mozo_1") en Firestore antes de cambiar de pantalla
+            FirebaseFirestore.getInstance().collection("mozo")
+                .whereEqualTo("usuarioId", usuarioIdBackend)
+                .get()
+                .addOnSuccessListener { documents ->
+                    if (!documents.isEmpty) {
+                        // Sacamos el ID del documento (ej. "mozo_1")
+                        val mozoIdReal = documents.documents[0].id
 
-            startActivity(Intent(this, MainActivity::class.java))
-            finish()
+                        // Lo guardamos en las preferencias
+                        sharedPreferences.edit().putString("mozoId", mozoIdReal).apply()
+                        Log.d("Login", "Éxito: MozoId guardado -> $mozoIdReal")
+                    } else {
+                        Log.e("Login", "Ojo: No se encontró un mozo en Firestore con usuarioId $usuarioIdBackend")
+                    }
+
+                    // 3. Ahora sí, dejamos entrar al usuario a la app
+                    startActivity(Intent(this@LoginActivity, MainActivity::class.java))
+                    finish()
+                }
+                .addOnFailureListener {
+                    Log.e("Login", "Error conectando a Firestore", it)
+                    // Entramos de todas formas por si es un error temporal de red
+                    startActivity(Intent(this@LoginActivity, MainActivity::class.java))
+                    finish()
+                }
         }
 
 

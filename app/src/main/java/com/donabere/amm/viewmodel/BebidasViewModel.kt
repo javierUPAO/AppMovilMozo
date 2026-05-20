@@ -33,12 +33,7 @@ class BebidasViewModel(application: Application) : AndroidViewModel(application)
             result.onSuccess { bebidas ->
                 val bebidasConStockReal = bebidas.map { bebida ->
                     val stockFirestore = pedidoRepository.obtenerStock(bebida.id)
-                    if (stockFirestore == null) {
-                        pedidoRepository.inicializarStockSiNoExiste(bebida.id, bebida.stock)
-                        bebida
-                    } else {
-                        bebida.copy(stock = stockFirestore)
-                    }
+                    if (stockFirestore != null) bebida.copy(stock = stockFirestore) else bebida
                 }
                 _bebidas.value = bebidasConStockReal
             }.onFailure {

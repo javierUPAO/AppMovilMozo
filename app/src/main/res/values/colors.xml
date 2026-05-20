@@ -12,5 +12,10 @@
     <color name="orange_primary">#F59E0B</color>
     <color name="orange_dark">#8F5C06</color>
     <color name="orange_primary_20">#33F59E0B</color>
+    <color name="surface_variant">#FFF8EE</color>
     <color name="colorSecondaryContainer">@android:color/transparent</color>
+    <color name="chip_no_asignado_bg">#BDBDBD</color>
+    <color name="chip_no_asignado_text">#212121</color>
+    <color name="chip_unselected_bg">#F5F5F5</color>
+
 </resources>

@@ -8,19 +8,31 @@ import com.donabere.amm.ui.fragment.PlatosFragment
 
 class PaginaMenuAdapter : FragmentStateAdapter {
 
-    // Constructor para Activity (MenuActivity, SeleccionProductoActivity)
-    constructor(activity: FragmentActivity) : super(activity)
+    private val onProductoSeleccionado: ((productoId: String, nombre: String, precio: Double) -> Unit)?
 
-    // Constructor para Fragment (MenuFragment)
-    constructor(fragment: Fragment) : super(fragment)
+    // Constructor para Activity con callback (CrearPedidoActivity)
+    constructor(
+        activity: FragmentActivity,
+        onProductoSeleccionado: ((productoId: String, nombre: String, precio: Double) -> Unit)? = null
+    ) : super(activity) {
+        this.onProductoSeleccionado = onProductoSeleccionado
+    }
+
+    // Constructor para Fragment con callback (MenuFragment si se necesita)
+    constructor(
+        fragment: Fragment,
+        onProductoSeleccionado: ((productoId: String, nombre: String, precio: Double) -> Unit)? = null
+    ) : super(fragment) {
+        this.onProductoSeleccionado = onProductoSeleccionado
+    }
 
     override fun getItemCount(): Int = 2
 
     override fun createFragment(position: Int): Fragment {
         return when (position) {
-            0 -> PlatosFragment()
-            1 -> BebidasFragment()
-            else -> throw IllegalArgumentException("Posición inválida")
+            0 -> PlatosFragment.newInstance(onProductoSeleccionado)
+            1 -> BebidasFragment.newInstance(onProductoSeleccionado)
+            else -> throw IllegalArgumentException("Posición inválida: $position")
         }
     }
 }

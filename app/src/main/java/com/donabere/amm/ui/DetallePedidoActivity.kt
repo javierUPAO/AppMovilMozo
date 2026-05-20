@@ -4,14 +4,17 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
-import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.donabere.amm.R
+import com.donabere.amm.model.DetallePedido
 import com.donabere.amm.ui.adapter.DetallePedidoReadOnlyAdapter
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.chip.Chip
+import com.google.android.material.chip.ChipGroup
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.firestore.FirebaseFirestore
@@ -32,96 +35,187 @@ class DetallePedidoActivity : AppCompatActivity() {
         fun newIntent(context: Context, pedidoId: String, mesaId: String): Intent =
             Intent(context, DetallePedidoActivity::class.java).apply {
                 putExtra(EXTRA_PEDIDO_ID, pedidoId)
-                putExtra(EXTRA_MESA_ID, mesaId)
+                putExtra(EXTRA_MESA_ID,   mesaId)
             }
     }
 
     private val db         = FirebaseFirestore.getInstance()
     private val pedidosRef = db.collection("pedidos")
-    private val mesasRef   = db.collection("mesas_estado")
-    private val stockRef   = db.collection("stock")
+    private val mesasRef   = db.collection("mesas")
 
-    private lateinit var tvMesa:       TextView
-    private lateinit var tvTotal:      TextView
-    private lateinit var tvVacio:      TextView
-    private lateinit var rvDetalles:   RecyclerView
-    private lateinit var btnCobrar:    Button
-    private lateinit var progressBar:  ProgressBar
+    private lateinit var tvMesa:            TextView
+    private lateinit var tvTotal:           TextView
+    private lateinit var tvVacio:           TextView
+    private lateinit var rvDetalles:        RecyclerView
+    private lateinit var btnCobrar:         MaterialButton
+    private lateinit var btnDividir:        MaterialButton
+    private lateinit var progressBar:       ProgressBar
+    private lateinit var llCuentasDivididas: View
+    private lateinit var chipGroupCuentas:  ChipGroup
 
     private lateinit var pedidoId: String
-    private var mesaId: Int = -1
+    private lateinit var mesaId:   String
+
+    /** Detalles cargados de Firestore, necesarios para pasarlos al dialog */
+    private var detallesActuales: List<DetallePedido> = emptyList()
 
     private val moneyFormat = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("es-PE"))
+
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_detalle_pedido)
 
         pedidoId = intent.getStringExtra(EXTRA_PEDIDO_ID) ?: run { finish(); return }
-        mesaId   = intent.getIntExtra(EXTRA_MESA_ID, -1)
+        mesaId   = intent.getStringExtra(EXTRA_MESA_ID)   ?: run { finish(); return }
 
-        tvMesa      = findViewById(R.id.tv_mesa_label)
-        tvTotal     = findViewById(R.id.tv_total)
-        tvVacio     = findViewById(R.id.tv_vacio)
-        rvDetalles  = findViewById(R.id.rv_detalles)
-        btnCobrar   = findViewById(R.id.btn_cobrar)
-        progressBar = findViewById(R.id.progress_bar)
-
+        bindViews()
         tvMesa.text = "Mesa $mesaId"
-
         rvDetalles.layoutManager = LinearLayoutManager(this)
 
         cargarDetalles()
 
-        btnCobrar.setOnClickListener { confirmarCobro() }
+        btnDividir.setOnClickListener { abrirDividirCuenta() }
+        btnCobrar.setOnClickListener  { confirmarCobro() }
     }
+
+    // ── Binding ───────────────────────────────────────────────────────────────
+
+    private fun bindViews() {
+        tvMesa             = findViewById(R.id.tv_mesa_label)
+        tvTotal            = findViewById(R.id.tv_total)
+        tvVacio            = findViewById(R.id.tv_vacio)
+        rvDetalles         = findViewById(R.id.rv_detalles)
+        btnCobrar          = findViewById(R.id.btn_cobrar)
+        btnDividir         = findViewById(R.id.btn_dividir)
+        progressBar        = findViewById(R.id.progress_bar)
+        llCuentasDivididas = findViewById(R.id.ll_cuentas_divididas)
+        chipGroupCuentas   = findViewById(R.id.chip_group_cuentas)
+    }
+
+    // ── Cargar detalles ───────────────────────────────────────────────────────
 
     private fun cargarDetalles() {
         progressBar.visibility = View.VISIBLE
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
+                // 1. Detalles del pedido
                 val detallesSnap = pedidosRef
                     .document(pedidoId)
                     .collection("detalles")
                     .get()
                     .await()
 
-                val items = detallesSnap.documents.map { doc ->
-                    DetallePedidoReadOnlyAdapter.Item(
-                        nombre   = doc.getString("nombreProducto") ?: "",
-                        cantidad = doc.getLong("cantidad")?.toInt() ?: 0,
-                        subtotal = doc.getDouble("subtotal") ?: 0.0
+                val detalles = detallesSnap.documents.map { doc ->
+                    DetallePedido(
+                        id             = doc.id,
+                        productoId     = doc.getString("productoId")     ?: "",
+                        nombreProducto = doc.getString("nombreProducto") ?: "",
+                        precioUnitario = doc.getDouble("precioUnitario") ?: 0.0,
+                        cantidad       = doc.getLong("cantidad")?.toInt() ?: 0,
+                        nota           = doc.getString("nota")           ?: "",
+                        anulado        = doc.getBoolean("anulado")       ?: false
+                    )
+                }.filter { !it.anulado }
+
+                val total = detalles.sumOf { it.subtotal }
+
+                // 2. Cuentas divididas (si existen)
+                val cuentasSnap = pedidosRef
+                    .document(pedidoId)
+                    .collection("cuentas")
+                    .get()
+                    .await()
+
+                val cuentas = cuentasSnap.documents.map { doc ->
+                    Pair(
+                        doc.getString("nombre")      ?: "Cuenta",
+                        doc.getDouble("totalCuenta") ?: 0.0
                     )
                 }
 
-                val total = items.sumOf { it.subtotal }
-
                 withContext(Dispatchers.Main) {
                     progressBar.visibility = View.GONE
-                    if (items.isEmpty()) {
+                    detallesActuales = detalles
+
+                    if (detalles.isEmpty()) {
                         tvVacio.visibility    = View.VISIBLE
                         rvDetalles.visibility = View.GONE
+                        btnDividir.isEnabled  = false
                         btnCobrar.isEnabled   = false
                     } else {
                         tvVacio.visibility    = View.GONE
                         rvDetalles.visibility = View.VISIBLE
-                        rvDetalles.adapter    = DetallePedidoReadOnlyAdapter(items)
-                        tvTotal.text          = "Total: ${moneyFormat.format(total)}"
+                        rvDetalles.adapter    = DetallePedidoReadOnlyAdapter(
+                            detalles.map { d ->
+                                DetallePedidoReadOnlyAdapter.Item(
+                                    nombre   = d.nombreProducto,
+                                    cantidad = d.cantidad,
+                                    subtotal = d.subtotal
+                                )
+                            }
+                        )
+                        tvTotal.text = "Total: ${moneyFormat.format(total)}"
+                    }
+
+                    // Mostrar cuentas divididas si ya se guardaron
+                    if (cuentas.isNotEmpty()) {
+                        mostrarCuentasDivididas(cuentas)
                     }
                 }
+
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     progressBar.visibility = View.GONE
-                    Snackbar.make(
-                        findViewById(android.R.id.content),
-                        "Error al cargar pedido: ${e.message}",
-                        Snackbar.LENGTH_LONG
-                    ).show()
+                    mostrarError("Error al cargar pedido: ${e.message}")
                 }
             }
         }
     }
+
+    // ── Dialog dividir cuenta ─────────────────────────────────────────────────
+
+    private fun abrirDividirCuenta() {
+        if (detallesActuales.isEmpty()) return
+
+        DividirCuentaDialog.show(
+            fm        = supportFragmentManager,
+            pedidoId  = pedidoId,
+            detalles  = detallesActuales,
+            onGuardado = {
+                // Recargar para mostrar las cuentas nuevas
+                chipGroupCuentas.removeAllViews()
+                cargarDetalles()
+                Snackbar.make(
+                    findViewById(android.R.id.content),
+                    "División guardada correctamente",
+                    Snackbar.LENGTH_SHORT
+                ).show()
+            }
+        )
+    }
+
+    // ── Mostrar chips de cuentas ──────────────────────────────────────────────
+
+    private fun mostrarCuentasDivididas(cuentas: List<Pair<String, Double>>) {
+        llCuentasDivididas.visibility = View.VISIBLE
+        chipGroupCuentas.removeAllViews()
+
+        cuentas.forEach { (nombre, total) ->
+            val chip = Chip(this).apply {
+                text = "$nombre\n${moneyFormat.format(total)}"
+                isClickable = false
+                isCheckable = false
+                setChipBackgroundColorResource(R.color.chip_unselected_bg)
+                setTextColor(getColor(R.color.text_primary))
+            }
+            chipGroupCuentas.addView(chip)
+        }
+    }
+
+    // ── Cobro ─────────────────────────────────────────────────────────────────
 
     private fun confirmarCobro() {
         MaterialAlertDialogBuilder(this)
@@ -135,6 +229,7 @@ class DetallePedidoActivity : AppCompatActivity() {
     private fun procesarCobro() {
         progressBar.visibility = View.VISIBLE
         btnCobrar.isEnabled    = false
+        btnDividir.isEnabled   = false
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -143,9 +238,13 @@ class DetallePedidoActivity : AppCompatActivity() {
                     .update("estado", "PAGADO")
                     .await()
 
-                // 2. Liberar mesa en Firestore
-                mesasRef.document(mesaId.toString())
-                    .delete()
+                // 2. Liberar mesa en Firestore (Hacemos UPDATE, no DELETE)
+                mesasRef.document(mesaId.trim())
+                    .update(
+                        mapOf(
+                            "estado" to "LIBRE"
+                        )
+                    )
                     .await()
 
                 withContext(Dispatchers.Main) {
@@ -155,7 +254,6 @@ class DetallePedidoActivity : AppCompatActivity() {
                         "✅ Mesa $mesaId liberada",
                         Snackbar.LENGTH_SHORT
                     ).show()
-                    // Volver a la lista de mesas
                     rvDetalles.postDelayed({ finish() }, 1000)
                 }
 
@@ -163,13 +261,20 @@ class DetallePedidoActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     progressBar.visibility = View.GONE
                     btnCobrar.isEnabled    = true
-                    Snackbar.make(
-                        findViewById(android.R.id.content),
-                        "Error al procesar cobro: ${e.message}",
-                        Snackbar.LENGTH_LONG
-                    ).show()
+                    btnDividir.isEnabled   = true
+                    mostrarError("Error al procesar cobro: ${e.message}")
                 }
             }
         }
+    }
+
+    // ── Util ──────────────────────────────────────────────────────────────────
+
+    private fun mostrarError(msg: String) {
+        Snackbar.make(
+            findViewById(android.R.id.content),
+            msg,
+            Snackbar.LENGTH_LONG
+        ).show()
     }
 }

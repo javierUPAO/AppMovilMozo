@@ -13,7 +13,7 @@ import kotlinx.coroutines.launch
 
 class MenuViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repository    = MenuRepository(RetrofitClient.getApiService(application))
+    private val repository       = MenuRepository(RetrofitClient.getApiService(application))
     private val pedidoRepository = PedidoRepository()
 
     private val _menu = MutableLiveData<List<Dish>>()
@@ -31,16 +31,10 @@ class MenuViewModel(application: Application) : AndroidViewModel(application) {
             val result = repository.obtenerMenu()
             _isLoading.value = false
             result.onSuccess { dishes ->
-                // Sincronizar stock con Firestore
                 val dishesConStockReal = dishes.map { dish ->
-                    // Si existe en Firestore, usar ese stock; si no, inicializar con el del backend
                     val stockFirestore = pedidoRepository.obtenerStock(dish.id)
-                    if (stockFirestore == null) {
-                        pedidoRepository.inicializarStockSiNoExiste(dish.id, dish.stock)
-                        dish // primera vez → stock del backend
-                    } else {
-                        dish.copy(stock = stockFirestore) // ya existe → stock real
-                    }
+                    // Si Firestore tiene el stock actualizado, usarlo; si no, usar el del backend
+                    if (stockFirestore != null) dish.copy(stock = stockFirestore) else dish
                 }
                 _menu.value = dishesConStockReal
             }.onFailure {

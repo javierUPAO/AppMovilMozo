@@ -5,10 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
-import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -18,79 +16,80 @@ import com.donabere.amm.R
 import com.donabere.amm.model.DetallePedido
 import com.donabere.amm.repository.PedidoRepository
 import com.donabere.amm.ui.adapter.DetallePedidoAdapter
+import com.donabere.amm.ui.adapter.PaginaMenuAdapter
 import com.donabere.amm.viewmodel.PedidoViewModel
+import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
+import com.google.android.material.tabs.TabLayoutMediator
 import com.google.android.material.textfield.TextInputEditText
-import java.text.NumberFormat
-import java.util.Locale
 
 class CrearPedidoActivity : AppCompatActivity() {
 
+    // ─── Companion ────────────────────────────────────────────────────────────
     companion object {
         const val EXTRA_MESAS_IDS = "extra_mesas_ids"
         const val EXTRA_MOZO_ID   = "extra_mozo_id"
 
-        fun newIntent(context: Context, mesasIds: List<String>, mozoId: String): Intent =
-            Intent(context, CrearPedidoActivity::class.java).apply {
-                putExtra(EXTRA_MESAS_IDS, mesasIds.toString())
-                putExtra(EXTRA_MOZO_ID, mozoId)
-            }
-    }
-
-    private val viewModel: PedidoViewModel by viewModels {
-        val repo = PedidoRepository()
-        PedidoViewModel.Factory(repo, mozoId)
-    }
-
-    private val seleccionProductoLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val data = result.data
-            val id     = data?.getStringExtra(SeleccionProductoActivity.EXTRA_PRODUCTO_ID) ?: ""
-            val nombre = data?.getStringExtra(SeleccionProductoActivity.EXTRA_PRODUCTO_NOMBRE) ?: ""
-            val precio = data?.getDoubleExtra(SeleccionProductoActivity.EXTRA_PRODUCTO_PRECIO, 0.0) ?: 0.0
-
-            if (id != "" && nombre.isNotBlank()) {
-                viewModel.agregarProducto(
-                    mesasIds       = mesasIds,
-                    productoId     = id,
-                    nombreProducto = nombre,
-                    precioUnitario = precio
-                )
-            }
+        fun newIntent(
+            context: Context,
+            mesasIds: List<String>,
+            mozoId: String
+        ): Intent = Intent(context, CrearPedidoActivity::class.java).apply {
+            putStringArrayListExtra(EXTRA_MESAS_IDS, ArrayList(mesasIds))
+            putExtra(EXTRA_MOZO_ID, mozoId)
         }
     }
 
-    private lateinit var rvDetalles: RecyclerView
+    // ─── ViewModel ────────────────────────────────────────────────────────────
+    private val viewModel: PedidoViewModel by viewModels {
+        PedidoViewModel.Factory(PedidoRepository(), mozoId)
+    }
+
+    // Carrito (BottomSheet)
+    private lateinit var bottomSheetBehavior: BottomSheetBehavior<View>
+    private lateinit var rvCarrito: RecyclerView
     private lateinit var tvTotal: TextView
     private lateinit var tvMesas: TextView
-    private lateinit var tvVacio: TextView
-    private lateinit var btnAgregarProducto: Button
-    private lateinit var btnConfirmar: Button
+    private lateinit var tvCarritoVacio: TextView
+    private lateinit var tvContadorCarrito: TextView
+    private lateinit var btnEnviarCocina: View
     private lateinit var progressBar: ProgressBar
 
-    private lateinit var adapter: DetallePedidoAdapter
-    private val moneyFormat = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("es-PE"))
+    private lateinit var carritoAdapter: DetallePedidoAdapter
 
+    // ─── Datos ────────────────────────────────────────────────────────────────
     private lateinit var mesasIds: List<String>
     private var mozoId: String = ""
-
     private var ultimoEliminado: DetallePedido? = null
 
-
+    // ─── Lifecycle ────────────────────────────────────────────────────────────
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_crear_pedido)
 
-        mesasIds = intent.getStringArrayExtra(EXTRA_MESAS_IDS)?.toList() ?: listOf()
-        mozoId   = intent.getStringExtra(EXTRA_MOZO_ID)?: ""
+        mesasIds = intent.getStringArrayListExtra(EXTRA_MESAS_IDS) ?: arrayListOf()
+        mozoId   = intent.getStringExtra(EXTRA_MOZO_ID) ?: ""
 
         initViews()
-        setupRecyclerView()
+        setupMenu()
+        setupCarrito()
         setupObservers()
-        setupListeners()
+
+        // Iniciar el borrador del pedido
+        viewModel.iniciarPedido(mesasIds)
+    }
+
+    // ─── Setup ────────────────────────────────────────────────────────────────
+
+    private fun initViews() {
+        tvMesas            = findViewById(R.id.tv_mesas_label)
+        tvTotal            = findViewById(R.id.tv_total_pedido)
+        tvCarritoVacio     = findViewById(R.id.tv_carrito_vacio)
+        tvContadorCarrito  = findViewById(R.id.tv_contador_carrito)
+        rvCarrito          = findViewById(R.id.rv_carrito)
+        btnEnviarCocina    = findViewById(R.id.btn_enviar_cocina)
+        progressBar        = findViewById(R.id.progress_bar)
 
         tvMesas.text = if (mesasIds.size == 1)
             "Mesa ${mesasIds.first()}"
@@ -98,19 +97,29 @@ class CrearPedidoActivity : AppCompatActivity() {
             "Mesas ${mesasIds.joinToString(" + ")}"
     }
 
+    private fun setupMenu() {
+        val viewPager  = findViewById<androidx.viewpager2.widget.ViewPager2>(R.id.vp_menu)
+        val tabLayout  = findViewById<com.google.android.material.tabs.TabLayout>(R.id.tab_categorias)
 
-    private fun initViews() {
-        rvDetalles         = findViewById(R.id.rv_detalles_pedido)
-        tvTotal            = findViewById(R.id.tv_total_pedido)
-        tvMesas            = findViewById(R.id.tv_mesas_label)
-        tvVacio            = findViewById(R.id.tv_pedido_vacio)
-        btnAgregarProducto = findViewById(R.id.btn_agregar_producto)
-        btnConfirmar       = findViewById(R.id.btn_confirmar_pedido)
-        progressBar        = findViewById(R.id.progress_bar)
+
+        val adapter = PaginaMenuAdapter(this) { productoId, nombre, precio ->
+
+            agregarAlCarrito(productoId, nombre, precio)
+        }
+        viewPager.adapter = adapter
+
+        TabLayoutMediator(tabLayout, viewPager) { tab, pos ->
+            tab.text = listOf("Platos", "Bebidas")[pos]
+        }.attach()
     }
 
-    private fun setupRecyclerView() {
-        adapter = DetallePedidoAdapter(
+    private fun setupCarrito() {
+        val bottomSheet = findViewById<View>(R.id.bottom_sheet_carrito)
+        bottomSheetBehavior = BottomSheetBehavior.from(bottomSheet)
+        bottomSheetBehavior.peekHeight = resources.getDimensionPixelSize(R.dimen.carrito_peek_height) // 72dp
+        bottomSheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
+
+        carritoAdapter = DetallePedidoAdapter(
             onIncrement = { detalle ->
                 viewModel.actualizarCantidad(detalle, detalle.cantidad + 1)
             },
@@ -125,83 +134,97 @@ class CrearPedidoActivity : AppCompatActivity() {
             }
         )
 
-        rvDetalles.layoutManager = LinearLayoutManager(this)
-        rvDetalles.adapter = adapter
+        rvCarrito.layoutManager = LinearLayoutManager(this)
+        rvCarrito.adapter = carritoAdapter
 
-        // Swipe to delete (HU 3.4)
-        val swipeCallback = DetallePedidoAdapter.SwipeToDeleteCallback(adapter) { detalle ->
-            eliminarConUndo(detalle)
-        }
-        ItemTouchHelper(swipeCallback).attachToRecyclerView(rvDetalles)
+        // Swipe para eliminar (HU 3.2)
+        ItemTouchHelper(
+            DetallePedidoAdapter.SwipeToDeleteCallback(carritoAdapter) { detalle ->
+                eliminarConUndo(detalle)
+            }
+        ).attachToRecyclerView(rvCarrito)
+
+        btnEnviarCocina.setOnClickListener { confirmarPedido() }
     }
+
+    // ─── Observers ────────────────────────────────────────────────────────────
 
     private fun setupObservers() {
         viewModel.detalles.observe(this) { detalles ->
-            adapter.submitList(detalles)
+            carritoAdapter.submitList(detalles)
 
-            val estaVacio = detalles.isEmpty()
-            tvVacio.visibility     = if (estaVacio) View.VISIBLE else View.GONE
-            rvDetalles.visibility  = if (estaVacio) View.GONE    else View.VISIBLE
-            btnConfirmar.isEnabled = !estaVacio
+            val vacio = detalles.isEmpty()
+            tvCarritoVacio.visibility = if (vacio) View.VISIBLE else View.GONE
+            rvCarrito.visibility      = if (vacio) View.GONE    else View.VISIBLE
+            btnEnviarCocina.isEnabled = !vacio
 
+            // Contador de ítems en la pestaña del carrito (badge)
+            val totalItems = detalles.sumOf { it.cantidad }
+            tvContadorCarrito.text = if (totalItems > 0) "🛒 $totalItems" else "🛒"
+
+            // Total
             val total = detalles.sumOf { it.subtotal }
-            tvTotal.text = "Total: ${moneyFormat.format(total)}"
+            tvTotal.text = "Total: S/ %.2f".format(total)
+
+            // Expandir carrito automáticamente al agregar el primer producto
+            if (detalles.size == 1 && bottomSheetBehavior.state == BottomSheetBehavior.STATE_COLLAPSED) {
+                bottomSheetBehavior.state = BottomSheetBehavior.STATE_HALF_EXPANDED
+            }
         }
 
         viewModel.uiState.observe(this) { state ->
             when (state) {
                 is PedidoViewModel.UiState.Loading -> {
                     progressBar.visibility = View.VISIBLE
-                    btnConfirmar.isEnabled = false
+                    btnEnviarCocina.isEnabled = false
                 }
                 is PedidoViewModel.UiState.Idle -> {
                     progressBar.visibility = View.GONE
-                    btnConfirmar.isEnabled = viewModel.detalles.value?.isNotEmpty() == true
+                    btnEnviarCocina.isEnabled =
+                        viewModel.detalles.value?.isNotEmpty() == true
                 }
                 is PedidoViewModel.UiState.PedidoEnviado -> {
                     progressBar.visibility = View.GONE
+                    mostrarSnackbar("✅ Pedido enviado a cocina")
                     setResult(Activity.RESULT_OK)
-                    mostrarSnackbar("✅ Pedido enviado a cocina", isError = false)
-                    rvDetalles.postDelayed({ finish() }, 1500)
+                    rvCarrito.postDelayed({ finish() }, 1500)
                 }
                 is PedidoViewModel.UiState.Success -> {
                     progressBar.visibility = View.GONE
-                    mostrarSnackbar(state.mensaje, isError = false)
+                    mostrarSnackbar(state.mensaje)
                     viewModel.resetUiState()
                 }
                 is PedidoViewModel.UiState.Error -> {
                     progressBar.visibility = View.GONE
-                    btnConfirmar.isEnabled = true
-                    mostrarSnackbar(state.mensaje, isError = true)
+                    btnEnviarCocina.isEnabled =
+                        viewModel.detalles.value?.isNotEmpty() == true
+                    mostrarSnackbar("⚠️ ${state.mensaje}", isError = true)
                     viewModel.resetUiState()
                 }
             }
         }
     }
 
-    private fun setupListeners() {
-        btnAgregarProducto.setOnClickListener { abrirSeleccionProductos() }
-        btnConfirmar.setOnClickListener { confirmarPedido() }
-    }
+    // ─── Acciones ─────────────────────────────────────────────────────────────
 
-    private fun abrirSeleccionProductos() {
-        val intent = SeleccionProductoActivity.newIntent(
-            context = this,
-            mesaId  = mesasIds.first()
+    /**
+     * Llamado desde PaginaMenuAdapter cuando el usuario toca un producto.
+     * Si necesita nota, primero muestra el diálogo; si no, agrega directo.
+     */
+    fun agregarAlCarrito(
+        productoId: String,
+        nombre: String,
+        precio: Double,
+        cantidad: Int = 1,
+        nota: String = ""
+    ) {
+        viewModel.agregarProducto(
+            productoId     = productoId,
+            nombreProducto = nombre,
+            precioUnitario = precio,
+            cantidad       = cantidad,
+            nota           = nota
         )
-        seleccionProductoLauncher.launch(intent)
-    }
-
-    private fun confirmarPedido() {
-        val cantidad = viewModel.detalles.value?.size ?: 0
-        MaterialAlertDialogBuilder(this)
-            .setTitle("Confirmar pedido")
-            .setMessage("¿Enviar $cantidad producto(s) a cocina?")
-            .setPositiveButton("Enviar") { _, _ ->
-                viewModel.confirmarPedido()
-            }
-            .setNegativeButton("Revisar", null)
-            .show()
     }
 
     private fun eliminarConUndo(detalle: DetallePedido) {
@@ -209,21 +232,22 @@ class CrearPedidoActivity : AppCompatActivity() {
         viewModel.eliminarDetalle(detalle)
 
         Snackbar.make(
-            rvDetalles,
+            findViewById(android.R.id.content),
             "${detalle.nombreProducto} eliminado",
             Snackbar.LENGTH_LONG
         ).setAction("Deshacer") {
-            ultimoEliminado?.let { d ->
-                viewModel.agregarProducto(
-                    mesasIds       = mesasIds,
-                    productoId     = d.productoId,
-                    nombreProducto = d.nombreProducto,
-                    precioUnitario = d.precioUnitario,
-                    cantidad       = d.cantidad,
-                    nota           = d.nota
-                )
-            }
+            ultimoEliminado?.let { viewModel.restaurarDetalle(it) }
         }.show()
+    }
+
+    private fun confirmarPedido() {
+        val cantidad = viewModel.detalles.value?.size ?: 0
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Enviar a cocina")
+            .setMessage("¿Confirmar pedido con $cantidad producto(s)?")
+            .setPositiveButton("Enviar") { _, _ -> viewModel.confirmarPedido() }
+            .setNegativeButton("Revisar", null)
+            .show()
     }
 
     private fun mostrarDialogoNota(detalle: DetallePedido) {
@@ -236,17 +260,18 @@ class CrearPedidoActivity : AppCompatActivity() {
             .setTitle("Nota para ${detalle.nombreProducto}")
             .setView(view)
             .setPositiveButton("Guardar") { _, _ ->
-                val nuevaNota = etNota.text?.toString()?.trim() ?: ""
-                viewModel.actualizarNota(detalle, nuevaNota)
+                viewModel.actualizarNota(detalle, etNota.text?.toString()?.trim() ?: "")
             }
             .setNegativeButton("Cancelar", null)
             .show()
     }
 
-
-    private fun mostrarSnackbar(mensaje: String, isError: Boolean) {
-        val rootView = findViewById<View>(android.R.id.content)
-        val snack = Snackbar.make(rootView, mensaje, Snackbar.LENGTH_LONG)
+    private fun mostrarSnackbar(mensaje: String, isError: Boolean = false) {
+        val snack = Snackbar.make(
+            findViewById(android.R.id.content),
+            mensaje,
+            Snackbar.LENGTH_LONG
+        )
         if (isError) snack.setBackgroundTint(getColor(R.color.error_color))
         snack.show()
     }

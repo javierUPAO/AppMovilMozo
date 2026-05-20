@@ -1,6 +1,7 @@
 package com.donabere.amm.ui.fragment
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -8,7 +9,6 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.GridLayoutManager
-import androidx.recyclerview.widget.LinearLayoutManager
 import com.donabere.amm.databinding.ActivityMesasBinding
 import com.donabere.amm.model.enums.EstadoMesa
 import com.donabere.amm.ui.CrearPedidoActivity
@@ -22,41 +22,40 @@ class MesasFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val viewModel: MesasViewModel by viewModels()
+
     private val adapter = ItemMesaAdapter { mesa ->
-
         when (mesa.estado) {
-
             EstadoMesa.LIBRE -> {
+                val mozoIdActual = obtenerMozoId()
+
+                // CORRECCIÓN: Validación estricta para que no se envíen IDs vacíos a Firestore
+                if (mozoIdActual.isEmpty()) {
+                    Log.e("MesasFragment", "INTENTO FALLIDO: mozoId está vacío en SharedPreferences.")
+                    Toast.makeText(requireContext(), "Error: ID de mozo no encontrado. Por favor, vuelve a iniciar sesión.", Toast.LENGTH_LONG).show()
+                    return@ItemMesaAdapter
+                }
+
                 startActivity(
                     CrearPedidoActivity.newIntent(
-                        requireContext(),
+                        context  = requireContext(),
                         mesasIds = listOf(mesa.id),
-                        mozoId = ""
+                        mozoId   = mozoIdActual
                     )
                 )
             }
-
             EstadoMesa.OCUPADA -> {
-                // si aún tienes pedidoId en otro lado lo manejas aquí
-                Toast.makeText(
-                    requireContext(),
-                    "Mesa ocupada: ${mesa.id}",
-                    Toast.LENGTH_SHORT
-                ).show()
-
-                // o abrir detalle si luego agregas pedidoId al modelo
+                val pedidoId = mesa.pedidoId ?: return@ItemMesaAdapter
+                startActivity(
+                    DetallePedidoActivity.newIntent(
+                        context  = requireContext(),
+                        pedidoId = pedidoId,
+                        mesaId   = mesa.id
+                    )
+                )
             }
-
-            else -> {
-                Toast.makeText(
-                    requireContext(),
-                    "Estado desconocido",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
+            else -> { /* ignorar */ }
         }
     }
-
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -69,10 +68,13 @@ class MesasFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
         setupRecyclerView()
         observeViewModel()
+        viewModel.fetchMesas()
+    }
 
+    override fun onResume() {
+        super.onResume()
         viewModel.fetchMesas()
     }
 
@@ -92,15 +94,10 @@ class MesasFragment : Fragment() {
             binding.rvMesas.visibility = View.VISIBLE
             binding.tvError.visibility = View.GONE
         }
-
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
             binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
-            if (isLoading) {
-                binding.rvMesas.visibility = View.GONE
-                binding.tvError.visibility = View.GONE
-            }
+            if (isLoading) binding.rvMesas.visibility = View.GONE
         }
-
         viewModel.error.observe(viewLifecycleOwner) { errorMessage ->
             binding.tvError.text = errorMessage
             binding.tvError.visibility = View.VISIBLE
@@ -108,8 +105,13 @@ class MesasFragment : Fragment() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        viewModel.fetchMesas()
+    private fun obtenerMozoId(): String {
+        val prefs = requireContext().getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+        val id = prefs.getString("mozoId", "") ?: ""
+
+        // Agregamos este log para que puedas ver en la consola (Logcat) qué está leyendo exactamente
+        Log.d("MesasFragment", "MozoId recuperado de SharedPreferences: '$id'")
+
+        return id
     }
 }

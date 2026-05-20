@@ -15,12 +15,16 @@
         android:orientation="vertical"
         android:gravity="center"
         android:background="#FFFF"
-        android:padding="10dp">
+        android:padding="10dp"
+        android:clickable="false"
+        android:focusable="false">
 
         <!-- ICONO + ID CENTRADO -->
         <FrameLayout
             android:layout_width="100dp"
-            android:layout_height="100dp">
+            android:layout_height="100dp"
+            android:clickable="false"
+            android:focusable="false">
 
             <ImageView
                 android:id="@+id/ivIconoMesa"
@@ -28,6 +32,7 @@
                 android:layout_height="match_parent"
                 android:src="@drawable/ic_table_new"
                 android:scaleType="fitCenter"
+                android:clickable="false"
                 />
 
             <TextView
@@ -38,12 +43,16 @@
                 android:text="m1"
                 android:textSize="22sp"
                 android:textStyle="bold"
-                android:textColor="#616161"/>
+                android:textColor="#616161"
+                    android:clickable="false"
+                    android:focusable="false"/>
             <TextView
                 android:id="@+id/tvEstado"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:gravity="center" />
+                android:gravity="center"
+                    android:clickable="false"
+                    android:focusable="false"/>
         </FrameLayout>
 
         <!-- TEXTO ABAJO -->
@@ -54,6 +63,8 @@
             android:textStyle="bold"
             android:textColor="#333333"
             tools:text="3"
+                android:clickable="false"
+                android:focusable="false"
             />
         <TextView
             android:id="@+id/tvCapacidadTexto"
@@ -62,6 +73,8 @@
             android:textStyle="bold"
             android:textColor="#333333"
             tools:text="Personas"
+                android:clickable="false"
+                android:focusable="false"
             />
     </LinearLayout>
 
