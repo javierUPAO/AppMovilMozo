@@ -9,6 +9,7 @@ data class DetallePedido(
     val nota: String = "",
     val anulado: Boolean = false,
     val motivoAnulacion: String = "",
+    val imagenProducto: String = "",
     // A qué cuenta pertenece este detalle
     val cuentaId: String? = null
 ) {

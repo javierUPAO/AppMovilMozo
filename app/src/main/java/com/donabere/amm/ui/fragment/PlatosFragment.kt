@@ -19,7 +19,7 @@ class PlatosFragment : Fragment() {
 
     companion object {
         fun newInstance(
-            onProductoSeleccionado: ((productoId: String, nombre: String, precio: Double) -> Unit)? = null
+            onProductoSeleccionado: ((productoId: String, nombre: String, precio: Double, imagen: String) -> Unit)? = null
         ) = PlatosFragment().also { it.onProductoSeleccionado = onProductoSeleccionado }
     }
 
@@ -29,7 +29,7 @@ class PlatosFragment : Fragment() {
     private val viewModel: ProductoViewModel by viewModels()
     private lateinit var adapter: ProductoAdapter
 
-    var onProductoSeleccionado: ((productoId: String, nombre: String, precio: Double) -> Unit)? = null
+    var onProductoSeleccionado: ((productoId: String, nombre: String, precio: Double, imagen: String) -> Unit)? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -50,7 +50,7 @@ class PlatosFragment : Fragment() {
             val callback = onProductoSeleccionado
             if (callback != null) {
                 // Modo carrito → llama directo a CrearPedidoActivity
-                callback(producto.id, producto.nombre, producto.precio)
+                callback(producto.id, producto.nombre, producto.precio, producto.imagen)
             } else {
                 // Modo legacy → SeleccionProductoActivity escucha este result
                 // ID se pasa como String (ya no Int)
