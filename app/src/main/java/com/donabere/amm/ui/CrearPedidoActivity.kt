@@ -57,6 +57,7 @@ class CrearPedidoActivity : AppCompatActivity() {
     private lateinit var progressBar: ProgressBar
 
     private lateinit var carritoAdapter: DetallePedidoAdapter
+    private var snackbarActual: Snackbar? = null
 
     // ─── Datos ────────────────────────────────────────────────────────────────
     private lateinit var mesasIds: List<String>
@@ -172,7 +173,21 @@ class CrearPedidoActivity : AppCompatActivity() {
             }
         }
 
+        // Solo mostrar el indicador de PENDIENTE (sin conexión), no notificaciones de sincronización
+        viewModel.estadoSincronizacion.observe(this) { estado ->
+            when (estado) {
+                PedidoRepository.EstadoSincronizacion.PENDIENTE_SINCRONIZACION -> {
+                    mostrarSnackbar("📡 No hay conexión, se guardó de manera temporal...", duration = Snackbar.LENGTH_INDEFINITE)
+                }
+                else -> {
+                    // No mostrar notificaciones de sincronización en esta Activity
+                    // Solo el indicador de pendiente arriba
+                }
+            }
+        }
+
         viewModel.uiState.observe(this) { state ->
+            android.util.Log.d("CrearPedidoActivity", "UiState cambió a: $state")
             when (state) {
                 is PedidoViewModel.UiState.Loading -> {
                     progressBar.visibility = View.VISIBLE
@@ -184,8 +199,18 @@ class CrearPedidoActivity : AppCompatActivity() {
                         viewModel.detalles.value?.isNotEmpty() == true
                 }
                 is PedidoViewModel.UiState.PedidoEnviado -> {
+                    // Pedido enviado exitosamente - mostrar feedback visual y redirigir
                     progressBar.visibility = View.GONE
-                    mostrarSnackbar("✅ Pedido enviado a cocina")
+                    mostrarSnackbar("✅ Pedido enviado a cocina", duration = Snackbar.LENGTH_SHORT)
+                    android.util.Log.d("CrearPedidoActivity", "PedidoEnviado: finalizando Activity")
+                    setResult(Activity.RESULT_OK)
+                    // Redirigir después de mostrar snackbar brevemente
+                    rvCarrito.postDelayed({ finish() }, 1500)
+                }
+                is PedidoViewModel.UiState.PedidoEnviadoPendienteSincronizar -> {
+                    // Ya no se usa (el flujo es igual con y sin conexión)
+                    progressBar.visibility = View.GONE
+                    mostrarSnackbar("✅ Pedido guardado (sincronizando...)", duration = Snackbar.LENGTH_SHORT)
                     setResult(Activity.RESULT_OK)
                     rvCarrito.postDelayed({ finish() }, 1500)
                 }
@@ -198,6 +223,7 @@ class CrearPedidoActivity : AppCompatActivity() {
                     progressBar.visibility = View.GONE
                     btnEnviarCocina.isEnabled =
                         viewModel.detalles.value?.isNotEmpty() == true
+                    android.util.Log.d("CrearPedidoActivity", "Error: ${state.mensaje}")
                     mostrarSnackbar("⚠️ ${state.mensaje}", isError = true)
                     viewModel.resetUiState()
                 }
@@ -266,13 +292,17 @@ class CrearPedidoActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun mostrarSnackbar(mensaje: String, isError: Boolean = false) {
+    private fun mostrarSnackbar(mensaje: String, isError: Boolean = false, duration: Int = Snackbar.LENGTH_LONG) {
+        // Cerrar snackbar anterior
+        snackbarActual?.dismiss()
+        
         val snack = Snackbar.make(
             findViewById(android.R.id.content),
             mensaje,
-            Snackbar.LENGTH_LONG
+            duration
         )
         if (isError) snack.setBackgroundTint(getColor(R.color.error_color))
         snack.show()
+        snackbarActual = snack
     }
 }

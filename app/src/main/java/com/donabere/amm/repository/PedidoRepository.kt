@@ -36,12 +36,15 @@ class PedidoRepository {
     private var pedidoActual: Pedido? = null
     private val detallesBorrador = mutableListOf<DetallePedido>()
     private var contadorDetalle  = 1
+    private var pedidoIdActualMonitoreado: String? = null
 
     private val _detalles = MutableLiveData<List<DetallePedido>>(emptyList())
     private val _pedido   = MutableLiveData<Pedido?>(null)
+    private val _estadoSincronizacion = MutableLiveData<EstadoSincronizacion>(EstadoSincronizacion.SINCRONIZADO)
 
     fun observarDetalles(): LiveData<List<DetallePedido>> = _detalles
     fun observarPedido():   LiveData<Pedido?>             = _pedido
+    fun observarEstadoSincronizacion(): LiveData<EstadoSincronizacion> = _estadoSincronizacion
 
     // Compatibilidad con ViewModel existente
     fun getDetallesByPedido(pedidoId: String): LiveData<List<DetallePedido>> = _detalles
@@ -75,8 +78,10 @@ class PedidoRepository {
             mesasIds = mesasIdsFormateadas,
             estado   = EstadoPedido.BORRADOR
         )
+        pedidoIdActualMonitoreado = pedidoId
         detallesBorrador.clear()
         contadorDetalle = 1
+        iniciarMonitoreoSincronizacion(pedidoId)
         emitirEstado()
 
         Log.d(TAG, "Borrador creado: $pedidoId para mesas $mesasIdsFormateadas")
@@ -313,5 +318,53 @@ class PedidoRepository {
         } catch (e: Exception) {
             Log.e(TAG, "Error descontando stock $productoId: ${e.message}")
         }
+    }
+
+    // ─── Monitoreo de sincronización ──────────────────────────────────────────
+
+    /**
+     * Inicia un listener que monitorea si hay escrituras pendientes
+     * en Firestore (cuando se pierde conexión).
+     */
+    private fun iniciarMonitoreoSincronizacion(pedidoId: String) {
+        pedidosRef.document(pedidoId).addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                Log.e(TAG, "Error en listener de sincronización: ${error.message}")
+                _estadoSincronizacion.postValue(EstadoSincronizacion.ERROR_CONEXION)
+                return@addSnapshotListener
+            }
+
+            if (snapshot != null) {
+                val tienePendientes = snapshot.metadata.hasPendingWrites()
+                val nuevoEstado = if (tienePendientes) {
+                    EstadoSincronizacion.PENDIENTE_SINCRONIZACION
+                } else {
+                    EstadoSincronizacion.SINCRONIZADO
+                }
+                _estadoSincronizacion.postValue(nuevoEstado)
+                Log.d(TAG, "Estado sincronización: $nuevoEstado (pendientes: $tienePendientes)")
+            }
+        }
+    }
+
+    /**
+     * Verifica si hay escrituras pendientes para el pedido actual
+     */
+    suspend fun verificarEscriturasPendientes(pedidoId: String): Boolean {
+        return try {
+            val snapshot = pedidosRef.document(pedidoId).get().await()
+            snapshot.metadata.hasPendingWrites()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error verificando escrituras pendientes: ${e.message}")
+            false
+        }
+    }
+
+    // ─── Enum para estado de sincronización ────────────────────────────────────
+
+    enum class EstadoSincronizacion {
+        SINCRONIZADO,
+        PENDIENTE_SINCRONIZACION,
+        ERROR_CONEXION
     }
 }

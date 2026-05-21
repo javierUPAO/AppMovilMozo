@@ -16,9 +16,10 @@ class PedidoViewModel(
 
     // ─── Estado UI ────────────────────────────────────────────────────────────
     sealed class UiState {
-        object Idle          : UiState()
-        object Loading       : UiState()
-        object PedidoEnviado : UiState()
+        object Idle                              : UiState()
+        object Loading                           : UiState()
+        object PedidoEnviado                     : UiState()  // Enviado con éxito
+        object PedidoEnviadoPendienteSincronizar : UiState()  // Guardado, pendiente sincronización
         data class Success(val mensaje: String) : UiState()
         data class Error(val mensaje: String)   : UiState()
     }
@@ -29,6 +30,8 @@ class PedidoViewModel(
     // ─── Datos observables ────────────────────────────────────────────────────
     val detalles: LiveData<List<DetallePedido>> = repository.observarDetalles()
     val pedido:   LiveData<*>                   = repository.observarPedido()
+    val estadoSincronizacion: LiveData<PedidoRepository.EstadoSincronizacion> = 
+        repository.observarEstadoSincronizacion()
 
     private val _pedidoId = MutableLiveData<String?>(null)
     val pedidoId: LiveData<String?> = _pedidoId
@@ -122,12 +125,17 @@ class PedidoViewModel(
         }
         viewModelScope.launch {
             _uiState.value = UiState.Loading
-            repository.confirmarPedido(id).fold(
-                onSuccess = { _uiState.value = UiState.PedidoEnviado },
-                onFailure = { e ->
-                    _uiState.value = UiState.Error(e.message ?: "Error al confirmar")
-                }
-            )
+            try {
+                android.util.Log.d("PedidoVM", "Iniciando confirmarPedido para $id")
+                val resultado = repository.confirmarPedido(id).getOrThrow()
+                android.util.Log.d("PedidoVM", "confirmarPedido completado exitosamente")
+                // Pedido confirmado exitosamente - el indicador mostrará el estado de sincronización
+                _uiState.value = UiState.PedidoEnviado
+                android.util.Log.d("PedidoVM", "UiState actualizado a PedidoEnviado")
+            } catch (e: Exception) {
+                android.util.Log.e("PedidoVM", "Error en confirmarPedido: ${e.message}", e)
+                _uiState.value = UiState.Error(e.message ?: "Error al confirmar")
+            }
         }
     }
 
