@@ -58,7 +58,8 @@ class PedidoViewModel(
         nombreProducto: String,
         precioUnitario: Double,
         cantidad: Int = 1,
-        nota: String = ""
+        nota: String = "",
+        imagenProducto: String = ""
     ) {
         viewModelScope.launch {
             _uiState.value = UiState.Loading
@@ -74,7 +75,8 @@ class PedidoViewModel(
                     nombreProducto = nombreProducto,
                     precioUnitario = precioUnitario,
                     cantidad       = cantidad,
-                    nota           = nota
+                    nota           = nota,
+                    imagenUrl      = imagenProducto
                 ).fold(
                     onSuccess = { _uiState.value = UiState.Idle },
                     onFailure = { e ->

@@ -50,7 +50,7 @@ class PedidoRepository {
     // ─── Crear borrador ──────────────────────────────────────────────────────
 
     /**
-     * Crea el documento del pedido en Firestore como BORRADOR.
+     * Crea el documento del pedido en Firestore como PENDIENTE_PREPARACION.
      * Los detalles se guardan solo en memoria hasta confirmarPedido().
      */
     suspend fun crearPedidoBorrador(mesasIds: List<String>, mozoId: String): String {
@@ -62,7 +62,7 @@ class PedidoRepository {
         val data = hashMapOf(
             "mozoId"     to mozoId,
             "mesasIds"   to mesasIdsFormateadas,
-            "estado"     to EstadoPedido.BORRADOR.name,
+            "estado"     to EstadoPedido.PENDIENTE_PREPARACION.name,
             "totalPagar" to 0.0,
             "creadoEn"   to Timestamp.now() // Corregido: Se guarda como Timestamp nativo de Firebase
         )
@@ -73,7 +73,7 @@ class PedidoRepository {
             id       = pedidoId,
             mozoId   = mozoId,
             mesasIds = mesasIdsFormateadas,
-            estado   = EstadoPedido.BORRADOR
+            estado   = EstadoPedido.PENDIENTE_PREPARACION
         )
         detallesBorrador.clear()
         contadorDetalle = 1
@@ -91,7 +91,8 @@ class PedidoRepository {
         nombreProducto: String,
         precioUnitario: Double,
         cantidad: Int = 1,
-        nota: String = ""
+        nota: String = "",
+        imagenUrl: String = ""
     ): Result<String> {
         val stock = obtenerStock(productoId)
         val yaEnCarrito = detallesBorrador
@@ -122,7 +123,8 @@ class PedidoRepository {
                     nombreProducto = nombreProducto,
                     precioUnitario = precioUnitario,
                     cantidad       = cantidad,
-                    nota           = nota
+                    nota           = nota,
+                    imagenProducto = imagenUrl // NUEVO: Guardar URL de imagen
                 )
             )
             emitirEstado()
@@ -173,7 +175,7 @@ class PedidoRepository {
 
     /**
      * 1. Guarda los detalles en la subcolección Firestore
-     * 2. Actualiza el estado del pedido a COMANDADO
+     * 2. Actualiza el estado del pedido a PENDIENTE_PREPARACION
      * 3. Marca las mesas como OCUPADA en la colección 'mesas'
      * 4. Descuenta el stock
      */
@@ -198,14 +200,16 @@ class PedidoRepository {
                     "precioUnitario" to detalle.precioUnitario,
                     "cantidad"       to detalle.cantidad,
                     "nota"           to detalle.nota,
-                    "anulado"        to false
+                    "imagenProducto" to detalle.imagenProducto, // NUEVO: Guardar imagen
+                    "anulado"        to false,
+                    "estado"         to "PENDIENTE"
                 ))
             }
 
             // 2. Actualizar pedido
             val pedidoRef = pedidosRef.document(pedidoId)
             batch.update(pedidoRef, mapOf(
-                "estado"     to EstadoPedido.COMANDADO.name,
+                "estado"     to EstadoPedido.PENDIENTE_PREPARACION.name,
                 "totalPagar" to total
             ))
 
@@ -224,7 +228,7 @@ class PedidoRepository {
             activos.forEach { descontarStock(it.productoId, it.cantidad) }
 
             // 5. Limpiar estado en memoria
-            pedidoActual = pedidoActual?.copy(estado = EstadoPedido.COMANDADO, totalPagar = total)
+            pedidoActual = pedidoActual?.copy(estado = EstadoPedido.PENDIENTE_PREPARACION, totalPagar = total)
             detallesBorrador.clear()
             emitirEstado()
 
@@ -312,6 +316,228 @@ class PedidoRepository {
 
         } catch (e: Exception) {
             Log.e(TAG, "Error descontando stock $productoId: ${e.message}")
+        }
+    }
+
+    // ─── Obtener pedidos del mozo del día ───────────────────────────────────
+    
+    /**
+     * Obtiene todos los pedidos del mozo del día actual
+     * Retorna LiveData<List<Pedido>> para observar cambios
+     */
+    fun obtenerPedidosDelMozoDiaActual(mozoId: String): LiveData<List<Pedido>> {
+        val result = MutableLiveData<List<Pedido>>()
+        
+        try {
+            val hoy = com.google.firebase.Timestamp.now()
+            val startOfDay = com.google.firebase.Timestamp(
+                com.google.firebase.Timestamp(hoy.seconds - (hoy.seconds % 86400), 0).seconds,
+                0
+            )
+            val endOfDay = com.google.firebase.Timestamp(
+                startOfDay.seconds + 86400,
+                0
+            )
+            
+            pedidosRef
+                .whereEqualTo("mozoId", mozoId)
+                .whereGreaterThanOrEqualTo("creadoEn", startOfDay)
+                .whereLessThan("creadoEn", endOfDay)
+                .orderBy("creadoEn", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .addSnapshotListener { snapshot, exception ->
+                    if (exception != null) {
+                        Log.e(TAG, "Error obteniendo pedidos: ${exception.message}")
+                        return@addSnapshotListener
+                    }
+                    
+                    val pedidos = snapshot?.documents?.mapNotNull { doc ->
+                        try {
+                            Pedido(
+                                id = doc.id,
+                                mozoId = doc.getString("mozoId") ?: "",
+                                mesasIds = (doc.get("mesasIds") as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
+                                estado = EstadoPedido.valueOf(doc.getString("estado") ?: "BORRADOR"),
+                                totalPagar = doc.getDouble("totalPagar") ?: 0.0,
+                                creadoEn = doc.getTimestamp("creadoEn") ?: com.google.firebase.Timestamp.now()
+                            )
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error mapeando pedido: ${e.message}")
+                            null
+                        }
+                    } ?: emptyList()
+                    result.postValue(pedidos)
+                }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error en obtenerPedidosDelMozoDiaActual: ${e.message}")
+            result.postValue(emptyList())
+        }
+        
+        return result
+    }
+
+    // ─── Obtener detalles de un pedido ────────────────────────────────────
+
+    /**
+     * Obtiene todos los detalles (platos) de un pedido específico
+     * Retorna LiveData<List<DetallePedido>>
+     */
+    fun obtenerDetallesPedido(pedidoId: String): LiveData<List<DetallePedido>> {
+        val result = MutableLiveData<List<DetallePedido>>()
+        
+        try {
+            pedidosRef.document(pedidoId).collection("detalles")
+                .addSnapshotListener { snapshot, exception ->
+                    if (exception != null) {
+                        Log.e(TAG, "Error obteniendo detalles: ${exception.message}")
+                        return@addSnapshotListener
+                    }
+                    
+                    val detalles = snapshot?.documents?.mapNotNull { doc ->
+                        try {
+                            DetallePedido(
+                                id = doc.id,
+                                productoId = doc.getString("productoId") ?: "",
+                                nombreProducto = doc.getString("nombreProducto") ?: "",
+                                precioUnitario = doc.getDouble("precioUnitario") ?: 0.0,
+                                cantidad = (doc.getLong("cantidad") ?: 1).toInt(),
+                                nota = doc.getString("nota") ?: "",
+                                imagenProducto = doc.getString("imagenProducto") ?: "", // NUEVO: Obtener imagen
+                                anulado = doc.getBoolean("anulado") ?: false
+                            )
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error mapeando detalle: ${e.message}")
+                            null
+                        }
+                    } ?: emptyList()
+                    result.postValue(detalles)
+                }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error en obtenerDetallesPedido: ${e.message}")
+            result.postValue(emptyList())
+        }
+        
+        return result
+    }
+
+    // ─── Actualizar estado de un detalle ───────────────────────────────────
+
+    /**
+     * Obtiene un detalle específico
+     */
+    suspend fun obtenerDetallePedido(
+        pedidoId: String,
+        detalleId: String
+    ): DetallePedido? {
+        return try {
+            pedidosRef.document(pedidoId)
+                .collection("detalles")
+                .document(detalleId)
+                .get()
+                .await()
+                .toObject(DetallePedido::class.java)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error obteniendo detalle: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * Elimina un plato del pedido
+     */
+    suspend fun eliminarDetallePedido(
+        pedidoId: String,
+        detalleId: String
+    ): Result<Unit> {
+        return try {
+            pedidosRef.document(pedidoId)
+                .collection("detalles")
+                .document(detalleId)
+                .delete()
+                .await()
+            Log.d(TAG, "Detalle eliminado: $detalleId")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error eliminando detalle: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Cambia el estado del Pedido completo al siguiente estado
+     * BORRADOR → PENDIENTE_PREPARACION (Enviar a cocina)
+     * PENDIENTE_PREPARACION → COCINA
+     * COCINA → LISTO_PARA_ENTREGAR
+     * LISTO_PARA_ENTREGAR → ATENDIDO
+     * ATENDIDO → PAGADO (y libera mesas automáticamente)
+     */
+    suspend fun cambiarEstadoPedido(pedidoId: String): Result<Unit> {
+        return try {
+            val pedido = pedidosRef.document(pedidoId).get().await().toObject(Pedido::class.java)
+            if (pedido == null) {
+                return Result.failure(IllegalStateException("Pedido no encontrado"))
+            }
+            
+            val nuevoEstado = when (pedido.estado) {
+                EstadoPedido.BORRADOR -> EstadoPedido.PENDIENTE_PREPARACION
+                EstadoPedido.COMANDADO -> EstadoPedido.PENDIENTE_PREPARACION
+                EstadoPedido.PENDIENTE_PREPARACION -> EstadoPedido.COCINA
+                EstadoPedido.COCINA -> EstadoPedido.LISTO_PARA_ENTREGAR
+                EstadoPedido.LISTO_PARA_ENTREGAR -> EstadoPedido.ATENDIDO
+                EstadoPedido.ATENDIDO -> EstadoPedido.PAGADO
+                EstadoPedido.PAGADO -> EstadoPedido.PAGADO // Ya terminado
+                EstadoPedido.PAGADO_PARCIAL -> EstadoPedido.PAGADO
+            }
+            
+            // Si el nuevo estado es PAGADO, liberar mesas automáticamente
+            if (nuevoEstado == EstadoPedido.PAGADO) {
+                val batch = db.batch()
+                
+                // Marcar todas las mesas como LIBRE
+                pedido.mesasIds.forEach { mesaId ->
+                    batch.update(mesasRef.document(mesaId), "estado", "LIBRE")
+                }
+                
+                // Actualizar estado del pedido a PAGADO
+                batch.update(pedidosRef.document(pedidoId), "estado", nuevoEstado)
+                
+                batch.commit().await()
+                Log.d(TAG, "Estado del Pedido cambió a: $nuevoEstado y mesas liberadas: ${pedido.mesasIds}")
+            } else {
+                // Para otros estados, solo actualizar sin liberar mesas
+                pedidosRef.document(pedidoId)
+                    .update("estado", nuevoEstado)
+                    .await()
+                Log.d(TAG, "Estado del Pedido cambió a: $nuevoEstado")
+            }
+            
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error cambiando estado del pedido: ${e.message}")
+            Result.failure(e)
+        }
+    }
+    
+    /**
+     * Libera las mesas asociadas al pedido (marca como LIBRE)
+     */
+    suspend fun liberarMesas(pedido: Pedido): Result<Unit> {
+        return try {
+            val batch = db.batch()
+            
+            // Marcar todas las mesas como LIBRE
+            pedido.mesasIds.forEach { mesaId ->
+                batch.update(mesasRef.document(mesaId), "estado", "LIBRE")
+            }
+            
+            // Opcionalmente marcar el pedido como PAGADO o cerrar
+            batch.update(pedidosRef.document(pedido.id), "estado", EstadoPedido.PAGADO)
+            
+            batch.commit().await()
+            Log.d(TAG, "Mesas liberadas: ${pedido.mesasIds}")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error liberando mesas: ${e.message}")
+            Result.failure(e)
         }
     }
 }

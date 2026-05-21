@@ -5,6 +5,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import com.donabere.amm.R
 import com.donabere.amm.databinding.ActivityMainBinding
+import com.donabere.amm.ui.fragment.ListaPedidosFragment
 import com.donabere.amm.ui.fragment.MenuFragment
 import com.donabere.amm.ui.fragment.MesasFragment
 import com.donabere.amm.ui.fragment.ProfileFragment
@@ -41,8 +42,8 @@ class MainActivity : AppCompatActivity() {
                     updateHeader(item.itemId)
                     true
                 }
-                R.id.nav_notifications -> {
-                    // Placeholder para notificaciones (futuro)
+                R.id.nav_pedidos -> {
+                    showFragment(ListaPedidosFragment(), "pedidos")
                     updateHeader(item.itemId)
                     true
                 }
@@ -67,7 +68,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateHeader(itemId: Int) {
         val (titleRes, subtitleRes) = when (itemId) {
             R.id.nav_menu -> R.string.header_menu_title to R.string.header_menu_subtitle
-            R.id.nav_notifications -> R.string.header_notifications_title to R.string.header_notifications_subtitle
+            R.id.nav_pedidos -> R.string.header_pedidos_title to R.string.header_pedidos_subtitle
             R.id.nav_profile -> R.string.header_profile_title to R.string.header_profile_subtitle
             else -> R.string.header_mesas_title to R.string.header_mesas_subtitle
         }
