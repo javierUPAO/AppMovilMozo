@@ -77,7 +77,8 @@ class CrearPedidoActivity : AppCompatActivity() {
         setupObservers()
 
         // Iniciar el borrador del pedido
-        viewModel.iniciarPedido(mesasIds)
+        //viewModel.iniciarPedido(mesasIds)
+        viewModel.iniciarMesa(mesasIds)
     }
 
     // ─── Setup ────────────────────────────────────────────────────────────────
@@ -245,7 +246,7 @@ class CrearPedidoActivity : AppCompatActivity() {
     private fun confirmarPedido() {
         val cantidad = viewModel.detalles.value?.size ?: 0
         MaterialAlertDialogBuilder(this)
-            .setTitle("Enviar a cocina")
+            .setTitle("Crear pedido")
             .setMessage("¿Confirmar pedido con $cantidad producto(s)?")
             .setPositiveButton("Enviar") { _, _ -> viewModel.confirmarPedido() }
             .setNegativeButton("Revisar", null)

@@ -40,7 +40,7 @@ class TurnoFragment : Fragment() {
         setupListeners()
 
         sharedPreferences = requireContext().getSharedPreferences("app_prefs", 0)
-        mozoId = sharedPreferences.getString("usuario_id", "") ?: ""
+        mozoId = sharedPreferences.getString("mozoId", "") ?: ""
         Log.d("IdMozo","EL mozoId es : $mozoId")
         turnoViewModel.verificarTurno(mozoId)
         turnoViewModel.cargarUltimoTurno(mozoId)

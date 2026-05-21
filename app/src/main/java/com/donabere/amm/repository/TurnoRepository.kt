@@ -91,9 +91,9 @@ class TurnoRepository {
             .get()
             .await()
 
-        if (!snapshot.isEmpty) {
+/*if (!snapshot.isEmpty) {
             throw Exception("Ya existe un turno registrado hoy")
-        }
+        }*/
 
         val turno = hashMapOf(
             "mozoId" to mozoId,
@@ -109,13 +109,18 @@ class TurnoRepository {
         turnosRef.add(turno).await()
     }
 
-    suspend fun obtenerResumenPorTurno(    turno: Turno
+    suspend fun obtenerResumenPorTurno(
+        turno: Turno
     ): ResumenTurno {
+
         return try {
 
             val snapshot = db.collection("pedidos")
                 .whereEqualTo("mozoId", turno.mozoId)
-                .whereGreaterThanOrEqualTo("creadoEn", turno.inicio?:Timestamp.now())
+                .whereGreaterThanOrEqualTo(
+                    "creadoEn",
+                    turno.inicio ?: Timestamp.now()
+                )
                 .whereLessThanOrEqualTo(
                     "creadoEn",
                     turno.fin ?: Timestamp.now()
@@ -127,28 +132,50 @@ class TurnoRepository {
 
             val totalPedidos = pedidos.size
 
-            // MESAS únicas
             val mesasSet = mutableSetOf<String>()
 
             var totalCobrado = 0.0
 
-            for (doc in pedidos) {
+            for (pedidoDoc in pedidos) {
 
-                val mesas = (doc.get("mesasIds") as? List<*>)?.mapNotNull { it as? String } ?: emptyList()
+                // MESAS
+                val mesas = (pedidoDoc.get("mesasIds") as? List<*>)
+                    ?.mapNotNull { it as? String }
+                    ?: emptyList()
+
                 mesasSet.addAll(mesas)
 
-                val cuentas = (doc.get("cuentas") as? List<*>)?.mapNotNull { it as? Map<String, Any> } ?: emptyList()
+                // SUBCOLLECTION CUENTAS
+                val cuentasSnapshot = pedidoDoc.reference
+                    .collection("cuentas")
+                    .get()
+                    .await()
 
-                for (cuenta in cuentas) {
-                    if (cuenta["estadoPago"] == "PAGADO") {
+                for (cuentaDoc in cuentasSnapshot.documents) {
 
-                        val items = cuenta["items"] as? List<Map<String, Any>> ?: emptyList()
+                    val estadoPago =
+                        cuentaDoc.getString("estadoPago") ?: ""
 
-                        for (item in items) {
+                    if (estadoPago != "PAGADO") continue
 
-                            val cantidad = (item["cantidad"] as? Number)?.toDouble() ?: 0.0
-                            val precio = (item["precioUnitario"] as? Number)?.toDouble() ?: 0.0
+                    // SUBCOLLECTION DETALLES
+                    val detallesSnapshot = cuentaDoc.reference
+                        .collection("detalles")
+                        .get()
+                        .await()
 
+                    for (detalleDoc in detallesSnapshot.documents) {
+
+                        val cantidad =
+                            (detalleDoc.getDouble("cantidad") ?: 0.0)
+
+                        val precio =
+                            (detalleDoc.getDouble("precioUnitario") ?: 0.0)
+
+                        val anulado =
+                            detalleDoc.getBoolean("anulado") ?: false
+
+                        if (!anulado) {
                             totalCobrado += cantidad * precio
                         }
                     }
@@ -162,9 +189,11 @@ class TurnoRepository {
             )
 
         } catch (e: Exception) {
+
             throw e
         }
     }
+
     suspend fun obtenerUltimoTurnoPorMozo(mozoId: String): Turno? {
 
         val snapshot = turnosRef
