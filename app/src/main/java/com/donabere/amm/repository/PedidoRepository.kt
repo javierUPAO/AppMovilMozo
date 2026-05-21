@@ -11,19 +11,11 @@ import com.donabere.amm.model.enums.EstadoPedido
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
+import kotlin.Result.Companion.failure
 
 private const val TAG = "PedidoRepository"
 
-/**
- * Toda la lógica de pedidos vive en Firestore.
- *
- * Colecciones usadas:
- * pedidos/                         → documento por pedido
- * pedidos/{id}/detalles/           → subcolección de DetallePedido
- * pedidos/{id}/cuentas/            → subcolección de Cuenta (solo al dividir)
- * mesas/{mesaId}                   → estado LIBRE / OCUPADA (Modificado)
- * productos/{productoId}           → { stock: Int }
- */
+
 class PedidoRepository {
 
     private val db         = FirebaseFirestore.getInstance()
@@ -35,6 +27,10 @@ class PedidoRepository {
 
     private var pedidoActual: Pedido? = null
     private val detallesBorrador = mutableListOf<DetallePedido>()
+
+    private val cuentasBorrador = mutableListOf<Cuenta>()
+
+    private var cuentaActiva: Cuenta? = null
     private var contadorDetalle  = 1
 
     private val _detalles = MutableLiveData<List<DetallePedido>>(emptyList())
@@ -85,78 +81,222 @@ class PedidoRepository {
 
     // ─── Gestión de detalles (en memoria, sobre el borrador) ─────────────────
 
-    suspend fun agregarDetalle(
-        pedidoId: String,
+
+    suspend fun agregarItemACuenta(
         productoId: String,
         nombreProducto: String,
         precioUnitario: Double,
-        cantidad: Int = 1,
-        nota: String = "",
-        imagenUrl: String = ""
+        cantidad: Int,
+        nota: String,
+        imagenUrl: String
     ): Result<String> {
-        val stock = obtenerStock(productoId)
-        val yaEnCarrito = detallesBorrador
-            .filter { it.productoId == productoId && !it.anulado }
-            .sumOf { it.cantidad }
 
-        if (stock != null && yaEnCarrito + cantidad > stock) {
-            return Result.failure(
-                IllegalStateException("Stock insuficiente. Disponible: ${stock - yaEnCarrito}")
-            )
-        }
+        return try {
 
-        val existente = detallesBorrador.find {
-            it.productoId == productoId && it.nota == nota && !it.anulado
-        }
+            // VALIDAR STOCK
+            val stock = obtenerStock(productoId)
 
-        return if (existente != null) {
-            val idx = detallesBorrador.indexOf(existente)
-            detallesBorrador[idx] = existente.copy(cantidad = existente.cantidad + cantidad)
-            emitirEstado()
-            Result.success(existente.id)
-        } else {
-            val detalleId = "d_${contadorDetalle++}"
-            detallesBorrador.add(
-                DetallePedido(
-                    id             = detalleId,
-                    productoId     = productoId,
+            // CREAR CUENTA LOCAL SI NO EXISTE
+            if (cuentaActiva == null) {
+
+                cuentaActiva = Cuenta(
+                    id = "c_1",
+                    nombre = "Cuenta 1",
+                    detalles = emptyList(),
+                    estadoPago = EstadoCuenta.PENDIENTE
+                )
+            }
+
+            val cuenta = cuentaActiva!!
+
+            // BUSCAR ITEM EXISTENTE
+            val existente = cuenta.detalles.find {
+                it.productoId == productoId &&
+                        it.nota == nota &&
+                        !it.anulado
+            }
+
+            val cantidadActual = existente?.cantidad ?: 0
+
+            // VALIDAR STOCK
+            if (stock != null && (cantidadActual + cantidad) > stock) {
+
+                return Result.failure(
+                    IllegalStateException(
+                        "Stock insuficiente. Disponible: ${stock - cantidadActual}"
+                    )
+                )
+            }
+
+            // NUEVA LISTA
+            val nuevosDetalles = if (existente != null) {
+
+                cuenta.detalles.map {
+
+                    if (it.id == existente.id) {
+
+                        it.copy(
+                            cantidad = it.cantidad + cantidad
+                        )
+
+                    } else it
+                }
+
+            } else {
+
+                val nuevoDetalle = DetallePedido(
+                    id = "d_${contadorDetalle++}",
+                    productoId = productoId,
                     nombreProducto = nombreProducto,
                     precioUnitario = precioUnitario,
-                    cantidad       = cantidad,
-                    nota           = nota,
-                    imagenProducto = imagenUrl // NUEVO: Guardar URL de imagen
+                    cuentaId = cuenta.id,
+                    cantidad = cantidad,
+                    nota = nota,
+                    imagenProducto = imagenUrl,
+                    anulado = false,
+                    motivoAnulacion = ""
                 )
+
+                cuenta.detalles + nuevoDetalle
+            }
+
+            // ACTUALIZAR CUENTA LOCAL
+            cuentaActiva = cuenta.copy(
+                detalles = nuevosDetalles
             )
+
             emitirEstado()
-            Result.success(detalleId)
+
+            Result.success("OK")
+
+        } catch (e: Exception) {
+
+            Result.failure(e)
         }
     }
 
-    fun actualizarCantidadDetalle(detalle: DetallePedido, nuevaCantidad: Int) {
-        val idx = detallesBorrador.indexOfFirst { it.id == detalle.id }
-        if (idx == -1) return
-        if (nuevaCantidad <= 0) {
-            detallesBorrador.removeAt(idx)
+    private suspend fun recargarDetallesCuenta(
+        pedidoId: String,
+        cuentaId: String
+    ) {
+
+        val detallesSnapshot = pedidosRef
+            .document(pedidoId)
+            .collection("cuentas")
+            .document(cuentaId)
+            .collection("detalles")
+            .get()
+            .await()
+
+        val detalles = detallesSnapshot.documents.mapNotNull {
+            it.toObject(DetallePedido::class.java)
+        }.filter { !it.anulado }
+
+        _detalles.postValue(detalles)
+    }
+    fun actualizarCantidadDetalle(
+        detalle: DetallePedido,
+        nuevaCantidad: Int
+    ) {
+
+        val cuenta = cuentaActiva ?: return
+
+        val nuevosDetalles = if (nuevaCantidad <= 0) {
+
+            cuenta.detalles.filter {
+                it.id != detalle.id
+            }
+
         } else {
-            detallesBorrador[idx] = detalle.copy(cantidad = nuevaCantidad)
+
+            cuenta.detalles.map {
+
+                if (it.id == detalle.id) {
+
+                    it.copy(
+                        cantidad = nuevaCantidad
+                    )
+
+                } else it
+            }
         }
+
+        cuentaActiva = cuenta.copy(
+            detalles = nuevosDetalles
+        )
+
         emitirEstado()
     }
+    fun actualizarNotaDetalle(
+        detalle: DetallePedido,
+        nuevaNota: String
+    ) {
 
-    fun actualizarNotaDetalle(detalle: DetallePedido, nuevaNota: String) {
-        val idx = detallesBorrador.indexOfFirst { it.id == detalle.id }
-        if (idx == -1) return
-        detallesBorrador[idx] = detalle.copy(nota = nuevaNota)
+        val cuenta = cuentaActiva ?: return
+
+        val nuevosDetalles = cuenta.detalles.map {
+
+            if (it.id == detalle.id) {
+
+                it.copy(
+                    nota = nuevaNota
+                )
+
+            } else it
+        }
+
+        cuentaActiva = cuenta.copy(
+            detalles = nuevosDetalles
+        )
+
         emitirEstado()
     }
+    fun eliminarDetalle(
+        detalle: DetallePedido
+    ) {
 
-    fun eliminarDetalle(detalle: DetallePedido) {
-        detallesBorrador.removeIf { it.id == detalle.id }
+        val cuenta = cuentaActiva ?: return
+
+        val nuevosDetalles = cuenta.detalles.map {
+
+            if (it.id == detalle.id) {
+
+                it.copy(
+                    anulado = true,
+                    motivoAnulacion = "Eliminado desde carrito"
+                )
+
+            } else it
+        }
+
+        cuentaActiva = cuenta.copy(
+            detalles = nuevosDetalles
+        )
+
         emitirEstado()
     }
+    fun restaurarDetalle(
+        detalle: DetallePedido
+    ) {
 
-    fun restaurarDetalle(detalle: DetallePedido) {
-        detallesBorrador.add(detalle)
+        val cuenta = cuentaActiva ?: return
+
+        val nuevosDetalles = cuenta.detalles.map {
+
+            if (it.id == detalle.id) {
+
+                it.copy(
+                    anulado = false,
+                    motivoAnulacion = ""
+                )
+
+            } else it
+        }
+
+        cuentaActiva = cuenta.copy(
+            detalles = nuevosDetalles
+        )
+
         emitirEstado()
     }
 
@@ -179,64 +319,175 @@ class PedidoRepository {
      * 3. Marca las mesas como OCUPADA en la colección 'mesas'
      * 4. Descuenta el stock
      */
-    suspend fun confirmarPedido(pedidoId: String): Result<Unit> {
-        val activos = detallesBorrador.filter { !it.anulado }
-        if (activos.isEmpty()) {
-            return Result.failure(IllegalStateException("El pedido no tiene productos"))
-        }
+    suspend fun confirmarPedido(mozoId: String): Result<Unit> {
 
         return try {
-            val total       = activos.sumOf { it.subtotal }
-            val detallesCol = pedidosRef.document(pedidoId).collection("detalles")
+
+            // =========================
+            // VALIDAR CUENTA ACTIVA
+            // =========================
+
+            val cuenta = cuentaActiva
+                ?: return Result.failure(
+                    IllegalStateException("No hay cuenta activa")
+                )
+
+            // =========================
+            // OBTENER DETALLES ACTIVOS
+            // =========================
+
+            val detallesActivos = cuenta.detalles.filter {
+                !it.anulado
+            }
+
+            // =========================
+            // VALIDAR PRODUCTOS
+            // =========================
+
+            if (detallesActivos.isEmpty()) {
+
+                return Result.failure(
+                    IllegalStateException(
+                        "El pedido no tiene productos"
+                    )
+                )
+            }
+
+            // =========================
+            // CALCULAR TOTAL
+            // =========================
+
+            val total = detallesActivos.sumOf {
+                it.precioUnitario * it.cantidad
+            }
+
+            // =========================
+            // CREAR REFERENCIA PEDIDO
+            // =========================
+
+            val pedidoRef = pedidosRef.document()
+
+            val pedidoId = pedidoRef.id
+
+            // =========================
+            // CREAR PEDIDO
+            // =========================
+
+            val pedido = Pedido(
+                id = pedidoId,
+                estado = EstadoPedido.PENDIENTE_PREPARACION,
+                totalPagar = total,
+                mesasIds = pedidoActual?.mesasIds ?: emptyList(),
+                mozoId = mozoId,
+                cuentas = emptyList()
+            )
+
+            // =========================
+            // BATCH
+            // =========================
 
             val batch = db.batch()
 
-            // 1. Guardar cada detalle
-            activos.forEach { detalle ->
-                val ref = detallesCol.document()
-                batch.set(ref, hashMapOf(
-                    "productoId"     to detalle.productoId,
-                    "nombreProducto" to detalle.nombreProducto,
-                    "precioUnitario" to detalle.precioUnitario,
-                    "cantidad"       to detalle.cantidad,
-                    "nota"           to detalle.nota,
-                    "imagenProducto" to detalle.imagenProducto, // NUEVO: Guardar imagen
-                    "anulado"        to false,
-                    "estado"         to "PENDIENTE"
-                ))
+            // GUARDAR PEDIDO
+            batch.set(
+                pedidoRef,
+                pedido
+            )
+
+            // =========================
+            // CREAR CUENTA
+            // =========================
+
+            val cuentaRef = pedidoRef
+                .collection("cuentas")
+                .document(cuenta.id)
+
+            val cuentaFirestore = cuenta.copy(
+                detalles = emptyList()
+            )
+
+            batch.set(
+                cuentaRef,
+                cuentaFirestore
+            )
+
+            // =========================
+            // CREAR DETALLES
+            // =========================
+
+            detallesActivos.forEach { detalle ->
+
+                val detalleRef = cuentaRef
+                    .collection("detalles")
+                    .document(detalle.id)
+
+                batch.set(
+                    detalleRef,
+                    detalle
+                )
             }
 
-            // 2. Actualizar pedido
-            val pedidoRef = pedidosRef.document(pedidoId)
-            batch.update(pedidoRef, mapOf(
-                "estado"     to EstadoPedido.PENDIENTE_PREPARACION.name,
-                "totalPagar" to total
-            ))
+            // =========================
+            // MARCAR MESAS OCUPADAS
+            // =========================
 
-            // 3. Marcar mesas como OCUPADA
             pedidoActual?.mesasIds?.forEach { mesaId ->
+
                 val mesaRef = mesasRef.document(mesaId.trim())
-                batch.update(mesaRef, mapOf(
-                    "estado" to "OCUPADA"
-                    // ¡ELIMINAMOS LA LÍNEA DE pedidoId AQUÍ!
-                ))
+
+                batch.update(
+                    mesaRef,
+                    mapOf(
+                        "estado" to "OCUPADA",
+                        "pedidoId" to pedidoId
+                    )
+                )
             }
+
+            // =========================
+            // COMMIT
+            // =========================
 
             batch.commit().await()
 
-            // 4. Descontar stock
-            activos.forEach { descontarStock(it.productoId, it.cantidad) }
+            // =========================
+            // DESCONTAR STOCK
+            // =========================
 
-            // 5. Limpiar estado en memoria
-            pedidoActual = pedidoActual?.copy(estado = EstadoPedido.PENDIENTE_PREPARACION, totalPagar = total)
-            detallesBorrador.clear()
-            emitirEstado()
+            detallesActivos.forEach { detalle ->
 
-            Log.d(TAG, "Pedido $pedidoId confirmado. Total: $total")
+                descontarStock(
+                    detalle.productoId,
+                    detalle.cantidad
+                )
+            }
+
+            // =========================
+            // LIMPIAR MEMORIA
+            // =========================
+
+            cuentaActiva = null
+
+            _detalles.postValue(emptyList())
+
+            pedidoActual = null
+
+            _pedido.postValue(null)
+
+            Log.d(
+                TAG,
+                "Pedido confirmado correctamente: $pedidoId"
+            )
+
             Result.success(Unit)
 
         } catch (e: Exception) {
-            Log.e(TAG, "Error al confirmar pedido: ${e.message}")
+
+            Log.e(
+                TAG,
+                "Error al confirmar pedido: ${e.message}"
+            )
+
             Result.failure(e)
         }
     }
@@ -300,13 +551,25 @@ class PedidoRepository {
     // ─── Privados ─────────────────────────────────────────────────────────────
 
     private fun emitirEstado() {
-        val activos = detallesBorrador.filter { !it.anulado }
-        _detalles.postValue(activos.toList())
-        val total = activos.sumOf { it.subtotal }
-        pedidoActual = pedidoActual?.copy(totalPagar = total)
+
+        val cuenta = cuentaActiva ?: return
+
+        val activos = cuenta.detalles.filter {
+            !it.anulado
+        }
+
+        _detalles.postValue(activos)
+
+        val total = activos.sumOf {
+            it.subtotal
+        }
+
+        pedidoActual = pedidoActual?.copy(
+            totalPagar = total
+        )
+
         _pedido.postValue(pedidoActual)
     }
-
     private suspend fun descontarStock(productoId: String, cantidad: Int) {
         try {
             val docRef     = stockRef.document(productoId)
@@ -381,41 +644,126 @@ class PedidoRepository {
      * Obtiene todos los detalles (platos) de un pedido específico
      * Retorna LiveData<List<DetallePedido>>
      */
-    fun obtenerDetallesPedido(pedidoId: String): LiveData<List<DetallePedido>> {
+    fun obtenerDetallesPedido(
+        pedidoId: String
+    ): LiveData<List<DetallePedido>> {
+
         val result = MutableLiveData<List<DetallePedido>>()
-        
+
         try {
-            pedidosRef.document(pedidoId).collection("detalles")
-                .addSnapshotListener { snapshot, exception ->
+
+            pedidosRef
+                .document(pedidoId)
+                .collection("cuentas")
+                .addSnapshotListener { cuentasSnapshot, exception ->
+
                     if (exception != null) {
-                        Log.e(TAG, "Error obteniendo detalles: ${exception.message}")
+
+                        Log.e(
+                            TAG,
+                            "Error obteniendo cuentas: ${exception.message}"
+                        )
+
                         return@addSnapshotListener
                     }
-                    
-                    val detalles = snapshot?.documents?.mapNotNull { doc ->
-                        try {
-                            DetallePedido(
-                                id = doc.id,
-                                productoId = doc.getString("productoId") ?: "",
-                                nombreProducto = doc.getString("nombreProducto") ?: "",
-                                precioUnitario = doc.getDouble("precioUnitario") ?: 0.0,
-                                cantidad = (doc.getLong("cantidad") ?: 1).toInt(),
-                                nota = doc.getString("nota") ?: "",
-                                imagenProducto = doc.getString("imagenProducto") ?: "", // NUEVO: Obtener imagen
-                                anulado = doc.getBoolean("anulado") ?: false
-                            )
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error mapeando detalle: ${e.message}")
-                            null
-                        }
-                    } ?: emptyList()
-                    result.postValue(detalles)
+
+                    if (cuentasSnapshot == null) {
+
+                        result.postValue(emptyList())
+
+                        return@addSnapshotListener
+                    }
+
+                    val todosLosDetalles = mutableListOf<DetallePedido>()
+
+                    val cuentas = cuentasSnapshot.documents
+
+                    if (cuentas.isEmpty()) {
+
+                        result.postValue(emptyList())
+
+                        return@addSnapshotListener
+                    }
+
+                    var cuentasProcesadas = 0
+
+                    cuentas.forEach { cuentaDoc ->
+
+                        cuentaDoc.reference
+                            .collection("detalles")
+                            .get()
+                            .addOnSuccessListener { detallesSnapshot ->
+
+                                val detalles = detallesSnapshot.documents.mapNotNull { doc ->
+
+                                    try {
+
+                                        DetallePedido(
+                                            id = doc.id,
+                                            productoId = doc.getString("productoId") ?: "",
+                                            nombreProducto = doc.getString("nombreProducto") ?: "",
+                                            precioUnitario = doc.getDouble("precioUnitario") ?: 0.0,
+                                            cantidad = (doc.getLong("cantidad") ?: 1).toInt(),
+                                            nota = doc.getString("nota") ?: "",
+                                            imagenProducto = doc.getString("imagenProducto") ?: "",
+                                            anulado = doc.getBoolean("anulado") ?: false,
+                                            cuentaId = cuentaDoc.id
+                                        )
+
+                                    } catch (e: Exception) {
+
+                                        Log.e(
+                                            TAG,
+                                            "Error mapeando detalle: ${e.message}"
+                                        )
+
+                                        null
+                                    }
+                                }
+
+                                todosLosDetalles.addAll(
+                                    detalles.filter { !it.anulado }
+                                )
+
+                                cuentasProcesadas++
+
+                                // Cuando termine todas las cuentas
+                                if (cuentasProcesadas == cuentas.size) {
+
+                                    result.postValue(
+                                        todosLosDetalles
+                                    )
+                                }
+                            }
+                            .addOnFailureListener { e ->
+
+                                Log.e(
+                                    TAG,
+                                    "Error obteniendo detalles: ${e.message}"
+                                )
+
+                                cuentasProcesadas++
+
+                                if (cuentasProcesadas == cuentas.size) {
+
+                                    result.postValue(
+                                        todosLosDetalles
+                                    )
+                                }
+                            }
+                    }
                 }
+
         } catch (e: Exception) {
-            Log.e(TAG, "Error en obtenerDetallesPedido: ${e.message}")
+
+            Log.e(
+                TAG,
+                "Error en obtenerDetallesPedido: ${e.message}"
+            )
+
             result.postValue(emptyList())
         }
-        
+
         return result
     }
 
