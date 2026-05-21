@@ -78,7 +78,8 @@ class CrearPedidoActivity : AppCompatActivity() {
         setupObservers()
 
         // Iniciar el borrador del pedido
-        viewModel.iniciarPedido(mesasIds)
+        //viewModel.iniciarPedido(mesasIds)
+        viewModel.iniciarMesa(mesasIds)
     }
 
     // ─── Setup ────────────────────────────────────────────────────────────────
@@ -103,9 +104,9 @@ class CrearPedidoActivity : AppCompatActivity() {
         val tabLayout  = findViewById<com.google.android.material.tabs.TabLayout>(R.id.tab_categorias)
 
 
-        val adapter = PaginaMenuAdapter(this) { productoId, nombre, precio ->
+        val adapter = PaginaMenuAdapter(this) { productoId, nombre, precio, imagen ->
 
-            agregarAlCarrito(productoId, nombre, precio)
+            agregarAlCarrito(productoId, nombre, precio, imagen)
         }
         viewPager.adapter = adapter
 
@@ -241,6 +242,7 @@ class CrearPedidoActivity : AppCompatActivity() {
         productoId: String,
         nombre: String,
         precio: Double,
+        imagen: String = "",
         cantidad: Int = 1,
         nota: String = ""
     ) {
@@ -249,7 +251,8 @@ class CrearPedidoActivity : AppCompatActivity() {
             nombreProducto = nombre,
             precioUnitario = precio,
             cantidad       = cantidad,
-            nota           = nota
+            nota           = nota,
+            imagenProducto = imagen
         )
     }
 
@@ -269,7 +272,7 @@ class CrearPedidoActivity : AppCompatActivity() {
     private fun confirmarPedido() {
         val cantidad = viewModel.detalles.value?.size ?: 0
         MaterialAlertDialogBuilder(this)
-            .setTitle("Enviar a cocina")
+            .setTitle("Crear pedido")
             .setMessage("¿Confirmar pedido con $cantidad producto(s)?")
             .setPositiveButton("Enviar") { _, _ -> viewModel.confirmarPedido() }
             .setNegativeButton("Revisar", null)

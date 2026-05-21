@@ -18,5 +18,11 @@
     <color name="chip_no_asignado_bg">#BDBDBD</color>
     <color name="chip_no_asignado_text">#212121</color>
     <color name="chip_unselected_bg">#F5F5F5</color>
+    
+    <!-- Estados de pedidos -->
+    <color name="estado_pendiente">#999999</color>
+    <color name="estado_preparando">#FF9800</color>
+    <color name="estado_listo">#4CAF50</color>
+    <color name="estado_entregado">#2196F3</color>
 
 </resources>

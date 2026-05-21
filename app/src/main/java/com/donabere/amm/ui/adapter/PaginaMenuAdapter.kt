@@ -8,12 +8,12 @@ import com.donabere.amm.ui.fragment.PlatosFragment
 
 class PaginaMenuAdapter : FragmentStateAdapter {
 
-    private val onProductoSeleccionado: ((productoId: String, nombre: String, precio: Double) -> Unit)?
+    private val onProductoSeleccionado: ((productoId: String, nombre: String, precio: Double, imagen: String) -> Unit)?
 
     // Constructor para Activity con callback (CrearPedidoActivity)
     constructor(
         activity: FragmentActivity,
-        onProductoSeleccionado: ((productoId: String, nombre: String, precio: Double) -> Unit)? = null
+        onProductoSeleccionado: ((productoId: String, nombre: String, precio: Double, imagen: String) -> Unit)? = null
     ) : super(activity) {
         this.onProductoSeleccionado = onProductoSeleccionado
     }
@@ -21,7 +21,7 @@ class PaginaMenuAdapter : FragmentStateAdapter {
     // Constructor para Fragment con callback (MenuFragment si se necesita)
     constructor(
         fragment: Fragment,
-        onProductoSeleccionado: ((productoId: String, nombre: String, precio: Double) -> Unit)? = null
+        onProductoSeleccionado: ((productoId: String, nombre: String, precio: Double, imagen: String) -> Unit)? = null
     ) : super(fragment) {
         this.onProductoSeleccionado = onProductoSeleccionado
     }

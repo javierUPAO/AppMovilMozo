@@ -67,10 +67,6 @@ class ItemMesaAdapter(
                     binding.tvEstado.text = "OCUPADA"
                     binding.tvEstado.setTextColor(Color.parseColor("#F5A623"))
 
-                    // Click habilitado para ir al detalle del pedido
-                    binding.root.alpha = 1f
-                    binding.root.isEnabled = true
-                    binding.root.setOnClickListener { onMesaClick(mesa) }
                 }
 
                 else -> {

@@ -15,6 +15,7 @@ import com.donabere.amm.ui.CrearPedidoActivity
 import com.donabere.amm.ui.DetallePedidoActivity
 import com.donabere.amm.ui.adapter.ItemMesaAdapter
 import com.donabere.amm.viewmodel.MesasViewModel
+import com.donabere.amm.viewmodel.TurnoViewModel
 
 class MesasFragment : Fragment() {
 
@@ -23,19 +24,33 @@ class MesasFragment : Fragment() {
 
     private val viewModel: MesasViewModel by viewModels()
 
+    private val turnoViewModel: TurnoViewModel by viewModels()
+
+    private var tieneTurnoActivo = false
+
     private val adapter = ItemMesaAdapter { mesa ->
         when (mesa.estado) {
             EstadoMesa.LIBRE -> {
+
+                if (!tieneTurnoActivo) {
+                    Toast.makeText(
+                        requireContext(),
+                        "Debes abrir un turno primero",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                    return@ItemMesaAdapter
+                }
+
                 val mozoIdActual = obtenerMozoId()
 
-                // CORRECCIÓN: Validación estricta para que no se envíen IDs vacíos a Firestore
                 if (mozoIdActual.isEmpty()) {
                     Log.e("MesasFragment", "INTENTO FALLIDO: mozoId está vacío en SharedPreferences.")
                     Toast.makeText(requireContext(), "Error: ID de mozo no encontrado. Por favor, vuelve a iniciar sesión.", Toast.LENGTH_LONG).show()
                     return@ItemMesaAdapter
                 }
 
-                startActivity(
+            startActivity(
                     CrearPedidoActivity.newIntent(
                         context  = requireContext(),
                         mesasIds = listOf(mesa.id),
@@ -71,6 +86,7 @@ class MesasFragment : Fragment() {
         setupRecyclerView()
         observeViewModel()
         viewModel.fetchMesas()
+        turnoViewModel.verificarTurno(obtenerMozoId())
     }
 
     override fun onResume() {
@@ -102,6 +118,10 @@ class MesasFragment : Fragment() {
             binding.tvError.text = errorMessage
             binding.tvError.visibility = View.VISIBLE
             binding.rvMesas.visibility = View.GONE
+        }
+
+        turnoViewModel.turnoActivo.observe(viewLifecycleOwner) { turno ->
+            tieneTurnoActivo = turno != null
         }
     }
 

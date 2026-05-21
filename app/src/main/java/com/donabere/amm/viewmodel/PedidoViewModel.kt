@@ -30,7 +30,7 @@ class PedidoViewModel(
     // ─── Datos observables ────────────────────────────────────────────────────
     val detalles: LiveData<List<DetallePedido>> = repository.observarDetalles()
     val pedido:   LiveData<*>                   = repository.observarPedido()
-    val estadoSincronizacion: LiveData<PedidoRepository.EstadoSincronizacion> = 
+    val estadoSincronizacion: LiveData<PedidoRepository.EstadoSincronizacion> =
         repository.observarEstadoSincronizacion()
 
     private val _pedidoId = MutableLiveData<String?>(null)
@@ -53,6 +53,10 @@ class PedidoViewModel(
             }
         }
     }
+    fun iniciarMesa(mesasIds: List<String>)
+    {
+        this.mesasIds = mesasIds
+    }
 
     // ─── Carrito ──────────────────────────────────────────────────────────────
 
@@ -61,7 +65,8 @@ class PedidoViewModel(
         nombreProducto: String,
         precioUnitario: Double,
         cantidad: Int = 1,
-        nota: String = ""
+        nota: String = "",
+        imagenProducto: String = ""
     ) {
         viewModelScope.launch {
             _uiState.value = UiState.Loading
@@ -71,13 +76,13 @@ class PedidoViewModel(
                     ?: repository.crearPedidoBorrador(mesasIds, mozoId)
                         .also { _pedidoId.value = it }
 
-                repository.agregarDetalle(
-                    pedidoId       = id,
+                repository.agregarItemACuenta(
                     productoId     = productoId,
                     nombreProducto = nombreProducto,
                     precioUnitario = precioUnitario,
                     cantidad       = cantidad,
-                    nota           = nota
+                    nota           = nota,
+                    imagenUrl      = imagenProducto
                 ).fold(
                     onSuccess = { _uiState.value = UiState.Idle },
                     onFailure = { e ->
@@ -90,30 +95,72 @@ class PedidoViewModel(
         }
     }
 
-    fun actualizarCantidad(detalle: DetallePedido, nuevaCantidad: Int) {
+    fun actualizarCantidad(
+        detalle: DetallePedido,
+        nuevaCantidad: Int
+    ) {
+
+        val pedidoIdActual = _pedidoId.value ?: return
+
         viewModelScope.launch {
-            // Si incrementa, validar stock
+
             if (nuevaCantidad > detalle.cantidad) {
+
                 val stock = repository.obtenerStock(detalle.productoId)
+
                 if (stock != null && nuevaCantidad > stock) {
-                    _uiState.value = UiState.Error("Stock máximo disponible: $stock")
+
+                    _uiState.value =
+                        UiState.Error("Stock máximo disponible: $stock")
+
                     return@launch
                 }
             }
-            repository.actualizarCantidadDetalle(detalle, nuevaCantidad)
+
+            repository.actualizarCantidadDetalle(
+                detalle,
+                nuevaCantidad
+            )
         }
     }
 
-    fun actualizarNota(detalle: DetallePedido, nuevaNota: String) {
-        repository.actualizarNotaDetalle(detalle, nuevaNota)
-    }
+    fun actualizarNota(
+        detalle: DetallePedido,
+        nuevaNota: String
+    ) {
 
+        val pedidoIdActual = _pedidoId.value ?: return
+
+        viewModelScope.launch {
+
+            repository.actualizarNotaDetalle(
+                detalle,
+                nuevaNota
+            )
+        }
+    }
     fun eliminarDetalle(detalle: DetallePedido) {
-        repository.eliminarDetalle(detalle)
+
+        val pedidoIdActual = _pedidoId.value ?: return
+
+        viewModelScope.launch {
+
+            repository.eliminarDetalle(
+                detalle
+            )
+        }
     }
 
     fun restaurarDetalle(detalle: DetallePedido) {
-        repository.restaurarDetalle(detalle)
+
+        val pedidoIdActual = _pedidoId.value ?: return
+
+        viewModelScope.launch {
+
+            repository.restaurarDetalle(
+                detalle
+            )
+        }
     }
 
     // ─── Confirmar ────────────────────────────────────────────────────────────
@@ -125,17 +172,12 @@ class PedidoViewModel(
         }
         viewModelScope.launch {
             _uiState.value = UiState.Loading
-            try {
-                android.util.Log.d("PedidoVM", "Iniciando confirmarPedido para $id")
-                val resultado = repository.confirmarPedido(id).getOrThrow()
-                android.util.Log.d("PedidoVM", "confirmarPedido completado exitosamente")
-                // Pedido confirmado exitosamente - el indicador mostrará el estado de sincronización
-                _uiState.value = UiState.PedidoEnviado
-                android.util.Log.d("PedidoVM", "UiState actualizado a PedidoEnviado")
-            } catch (e: Exception) {
-                android.util.Log.e("PedidoVM", "Error en confirmarPedido: ${e.message}", e)
-                _uiState.value = UiState.Error(e.message ?: "Error al confirmar")
-            }
+            repository.confirmarPedido(mozoId).fold(
+                onSuccess = { _uiState.value = UiState.PedidoEnviado },
+                onFailure = { e ->
+                    _uiState.value = UiState.Error(e.message ?: "Error al confirmar")
+                }
+            )
         }
     }
 
