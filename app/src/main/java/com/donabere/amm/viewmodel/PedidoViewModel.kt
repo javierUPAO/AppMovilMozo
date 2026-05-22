@@ -36,7 +36,8 @@ class PedidoViewModel(
     private val _pedidoId = MutableLiveData<String?>(null)
     val pedidoId: LiveData<String?> = _pedidoId
 
-    private lateinit var mesasIds: List<String>
+    private var mesasIds: List<String> = emptyList()
+
 
     // ─── Inicializar ─────────────────────────────────────────────────────────
 
@@ -69,12 +70,9 @@ class PedidoViewModel(
         imagenProducto: String = ""
     ) {
         viewModelScope.launch {
-            if (_uiState.value == UiState.Loading) {
-                _uiState.value = UiState.Idle
-            }
-            // NO mostrar Loading para agregar - es rapido en local
+            _uiState.value = UiState.Loading
             try {
-                // Si no hay borrador aun, crearlo ahora
+                // Si no hay borrador aún, crearlo ahora
                 val id = _pedidoId.value
                     ?: repository.crearPedidoBorrador(mesasIds, mozoId)
                         .also { _pedidoId.value = it }
@@ -87,14 +85,8 @@ class PedidoViewModel(
                     nota           = nota,
                     imagenUrl      = imagenProducto
                 ).fold(
-                    onSuccess = {
-                        // Exito - mantener UI Idle (no bloquear)
-                        if (_uiState.value != UiState.Loading) {
-                            _uiState.value = UiState.Idle
-                        }
-                    },
+                    onSuccess = { _uiState.value = UiState.Idle },
                     onFailure = { e ->
-                        // Si falla, mostrar error en snackbar pero sin bloquear UI
                         _uiState.value = UiState.Error(e.message ?: "Error al agregar")
                     }
                 )
@@ -175,23 +167,20 @@ class PedidoViewModel(
     // ─── Confirmar ────────────────────────────────────────────────────────────
 
     fun confirmarPedido() {
-        val id = _pedidoId.value ?: run {
-            _uiState.value = UiState.Error("No hay pedido activo")
-            return
-        }
+        val pedidoIdActual = _pedidoId.value
+        val mesas = mesasIds
+
         viewModelScope.launch {
             _uiState.value = UiState.Loading
-            repository.confirmarPedido(mozoId).fold(
-                onSuccess = { pedidoId -> 
+
+            repository.confirmarPedido(
+                mozoId = mozoId,
+                mesasIds = mesas
+            ).fold(
+                onSuccess = {
                     _uiState.value = UiState.PedidoEnviado
-                    
-                    android.util.Log.d(
-                        "PedidoViewModel",
-                        "Pedido confirmado: $pedidoId - Redirigiendo inmediatamente"
-                    )
                 },
                 onFailure = { e ->
-                    android.util.Log.e("PedidoViewModel", "Error al confirmar: ${e.message}", e)
                     _uiState.value = UiState.Error(e.message ?: "Error al confirmar")
                 }
             )

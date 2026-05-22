@@ -10,10 +10,8 @@ import com.donabere.amm.model.enums.EstadoCuenta
 import com.donabere.amm.model.enums.EstadoPedido
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Source
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.withTimeoutOrNull
-import kotlin.Result.Companion.failure
+
 
 private const val TAG = "PedidoRepository"
 
@@ -315,13 +313,10 @@ class PedidoRepository {
 
     suspend fun obtenerStock(productoId: String): Int? {
         return try {
-            // Leer del cache local para no bloquear en modo offline
-            val doc = withTimeoutOrNull(300) {
-                stockRef.document(productoId).get(Source.CACHE).await()
-            }
-            if (doc?.exists() == true) doc.getLong("stock")?.toInt() else null
+            val doc = stockRef.document(productoId).get().await()
+            if (doc.exists()) doc.getLong("stock")?.toInt() else null
         } catch (e: Exception) {
-            Log.w(TAG, "No se puede obtener stock (offline ok): ${e.message}")
+            Log.e(TAG, "Error stock: ${e.message}")
             null
         }
     }
@@ -335,7 +330,10 @@ class PedidoRepository {
      * 3. Marca las mesas como OCUPADA en la colección 'mesas'
      * 4. Descuenta el stock
      */
-    suspend fun confirmarPedido(mozoId: String): Result<String> {
+    suspend fun confirmarPedido(
+        mozoId: String,
+        mesasIds: List<String>
+    ): Result<Unit> {
 
         return try {
 
@@ -348,24 +346,11 @@ class PedidoRepository {
                     IllegalStateException("No hay cuenta activa")
                 )
 
-            // =========================
-            // OBTENER DETALLES ACTIVOS
-            // =========================
-
-            val detallesActivos = cuenta.detalles.filter {
-                !it.anulado
-            }
-
-            // =========================
-            // VALIDAR PRODUCTOS
-            // =========================
+            val detallesActivos = cuenta.detalles.filter { !it.anulado }
 
             if (detallesActivos.isEmpty()) {
-
                 return Result.failure(
-                    IllegalStateException(
-                        "El pedido no tiene productos"
-                    )
+                    IllegalStateException("El pedido no tiene productos")
                 )
             }
 
@@ -378,109 +363,71 @@ class PedidoRepository {
             }
 
             // =========================
-            // CREAR REFERENCIA PEDIDO
-            // =========================
-
-            val pedidoRef = pedidosRef.document()
-
-            val pedidoId = pedidoRef.id
-
-            // =========================
             // CREAR PEDIDO
             // =========================
+            val pedidoRef = pedidosRef.document()
 
             val pedido = Pedido(
-                id = pedidoId,
+                id = pedidoRef.id,
                 estado = EstadoPedido.PENDIENTE_PREPARACION,
                 totalPagar = total,
-                mesasIds = pedidoActual?.mesasIds ?: emptyList(),
+                mesasIds = mesasIds, // ✅ CORRECTO
                 mozoId = mozoId,
                 cuentas = emptyList()
             )
 
-            // =========================
-            // BATCH
-            // =========================
-
             val batch = db.batch()
 
-            // GUARDAR PEDIDO
-            batch.set(
-                pedidoRef,
-                pedido
-            )
+            batch.set(pedidoRef, pedido)
 
             // =========================
             // CREAR CUENTA
             // =========================
-
             val cuentaRef = pedidoRef
                 .collection("cuentas")
                 .document(cuenta.id)
 
-            val cuentaFirestore = cuenta.copy(
-                detalles = emptyList()
-            )
-
             batch.set(
                 cuentaRef,
-                cuentaFirestore
+                cuenta.copy(detalles = emptyList())
             )
 
             // =========================
             // CREAR DETALLES
             // =========================
-
             detallesActivos.forEach { detalle ->
-
                 val detalleRef = cuentaRef
                     .collection("detalles")
                     .document(detalle.id)
 
-                batch.set(
-                    detalleRef,
-                    detalle
-                )
+                batch.set(detalleRef, detalle)
             }
 
             // =========================
             // MARCAR MESAS OCUPADAS
             // =========================
-
-            pedidoActual?.mesasIds?.forEach { mesaId ->
-
+            mesasIds.forEach { mesaId -> // ✅ CORRECTO
                 val mesaRef = mesasRef.document(mesaId.trim())
 
                 batch.update(
                     mesaRef,
                     mapOf(
                         "estado" to "OCUPADA",
-                        "pedidoId" to pedidoId
+                        "pedidoId" to pedido.id
                     )
                 )
             }
 
             // =========================
-            // COMMIT (SIN ESPERAR - Fire and forget)
+            // COMMIT
             // =========================
-            
-            // NO esperamos el commit para no bloquear el UI
-            // Firestore lo hace en background y sincroniza automáticamente
-            batch.commit()
-                .addOnFailureListener { error ->
-                    Log.e(TAG, "Error al hacer commit del pedido: ${error.message}")
-                }
-                .addOnSuccessListener {
-                    Log.d(TAG, "Commit del pedido completado: $pedidoId")
-                }
+            batch.commit().await()
 
             // =========================
-            // DESCONTAR STOCK (async, sin esperar)
+            // DESCONTAR STOCK
             // =========================
-
             detallesActivos.forEach { detalle ->
-                // Fire and forget - descontar en background sin bloquear
-                descontarStockAsync(
+                descontarStock(
                     detalle.productoId,
                     detalle.cantidad
                 )
@@ -489,35 +436,21 @@ class PedidoRepository {
             // =========================
             // INICIAR MONITOREO SINCRONIZACIÓN
             // =========================
-            
-            iniciarMonitoreoSincronizacion(pedidoId)
+
+
+            //iniciarMonitoreoSincronizacion(pedidoId)
 
             // =========================
             // LIMPIAR MEMORIA
             // =========================
-
             cuentaActiva = null
-
             _detalles.postValue(emptyList())
-
             pedidoActual = null
-
             _pedido.postValue(null)
 
-            Log.d(
-                TAG,
-                "Pedido confirmado correctamente: $pedidoId"
-            )
-
-            Result.success(pedidoId)
+            Result.success(Unit)
 
         } catch (e: Exception) {
-
-            Log.e(
-                TAG,
-                "Error al confirmar pedido: ${e.message}"
-            )
-
             Result.failure(e)
         }
     }
@@ -617,7 +550,7 @@ class PedidoRepository {
      */
     private fun descontarStockAsync(productoId: String, cantidad: Int) {
         val docRef = stockRef.document(productoId)
-        
+
         // Fire and forget - no esperar
         docRef.get()
             .addOnSuccessListener { snapshot ->
@@ -633,14 +566,14 @@ class PedidoRepository {
     }
 
     // ─── Obtener pedidos del mozo del día ───────────────────────────────────
-
+    
     /**
      * Obtiene todos los pedidos del mozo del día actual
      * Retorna LiveData<List<Pedido>> para observar cambios
      */
     fun obtenerPedidosDelMozoDiaActual(mozoId: String): LiveData<List<Pedido>> {
         val result = MutableLiveData<List<Pedido>>()
-
+        
         try {
             val hoy = com.google.firebase.Timestamp.now()
             val startOfDay = com.google.firebase.Timestamp(
@@ -651,7 +584,7 @@ class PedidoRepository {
                 startOfDay.seconds + 86400,
                 0
             )
-
+            
             pedidosRef
                 .whereEqualTo("mozoId", mozoId)
                 .whereGreaterThanOrEqualTo("creadoEn", startOfDay)
@@ -662,7 +595,7 @@ class PedidoRepository {
                         Log.e(TAG, "Error obteniendo pedidos: ${exception.message}")
                         return@addSnapshotListener
                     }
-
+                    
                     val pedidos = snapshot?.documents?.mapNotNull { doc ->
                         try {
                             Pedido(
@@ -684,7 +617,7 @@ class PedidoRepository {
             Log.e(TAG, "Error en obtenerPedidosDelMozoDiaActual: ${e.message}")
             result.postValue(emptyList())
         }
-
+        
         return result
     }
 
@@ -874,7 +807,7 @@ class PedidoRepository {
             if (pedido == null) {
                 return Result.failure(IllegalStateException("Pedido no encontrado"))
             }
-
+            
             val nuevoEstado = when (pedido.estado) {
                 EstadoPedido.BORRADOR -> EstadoPedido.PENDIENTE_PREPARACION
                 EstadoPedido.COMANDADO -> EstadoPedido.PENDIENTE_PREPARACION
@@ -885,19 +818,19 @@ class PedidoRepository {
                 EstadoPedido.PAGADO -> EstadoPedido.PAGADO // Ya terminado
                 EstadoPedido.PAGADO_PARCIAL -> EstadoPedido.PAGADO
             }
-
+            
             // Si el nuevo estado es PAGADO, liberar mesas automáticamente
             if (nuevoEstado == EstadoPedido.PAGADO) {
                 val batch = db.batch()
-
+                
                 // Marcar todas las mesas como LIBRE
                 pedido.mesasIds.forEach { mesaId ->
                     batch.update(mesasRef.document(mesaId), "estado", "LIBRE")
                 }
-
+                
                 // Actualizar estado del pedido a PAGADO
                 batch.update(pedidosRef.document(pedidoId), "estado", nuevoEstado)
-
+                
                 batch.commit().await()
                 Log.d(TAG, "Estado del Pedido cambió a: $nuevoEstado y mesas liberadas: ${pedido.mesasIds}")
             } else {
@@ -907,29 +840,29 @@ class PedidoRepository {
                     .await()
                 Log.d(TAG, "Estado del Pedido cambió a: $nuevoEstado")
             }
-
+            
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e(TAG, "Error cambiando estado del pedido: ${e.message}")
             Result.failure(e)
         }
     }
-
+    
     /**
      * Libera las mesas asociadas al pedido (marca como LIBRE)
      */
     suspend fun liberarMesas(pedido: Pedido): Result<Unit> {
         return try {
             val batch = db.batch()
-
+            
             // Marcar todas las mesas como LIBRE
             pedido.mesasIds.forEach { mesaId ->
                 batch.update(mesasRef.document(mesaId), "estado", "LIBRE")
             }
-
+            
             // Opcionalmente marcar el pedido como PAGADO o cerrar
             batch.update(pedidosRef.document(pedido.id), "estado", EstadoPedido.PAGADO)
-
+            
             batch.commit().await()
             Log.d(TAG, "Mesas liberadas: ${pedido.mesasIds}")
             Result.success(Unit)
