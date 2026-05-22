@@ -4,6 +4,8 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.view.View
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -282,9 +284,18 @@ class CrearPedidoActivity : AppCompatActivity() {
         MaterialAlertDialogBuilder(this)
             .setTitle("Crear pedido")
             .setMessage("¿Confirmar pedido con $cantidad producto(s)?")
-            .setPositiveButton("Enviar") { _, _ -> viewModel.confirmarPedido() }
+            .setPositiveButton("Enviar") { _, _ ->
+                viewModel.confirmarPedido(isOnline())
+            }
             .setNegativeButton("Revisar", null)
             .show()
+    }
+
+    private fun isOnline(): Boolean {
+        val cm = getSystemService(ConnectivityManager::class.java) ?: return false
+        val network = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(network) ?: return false
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
     private fun mostrarDialogoNota(detalle: DetallePedido) {

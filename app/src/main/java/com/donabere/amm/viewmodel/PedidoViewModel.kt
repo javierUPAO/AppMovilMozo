@@ -36,7 +36,9 @@ class PedidoViewModel(
     private val _pedidoId = MutableLiveData<String?>(null)
     val pedidoId: LiveData<String?> = _pedidoId
 
-    private lateinit var mesasIds: List<String>
+    private var mesasIds: List<String> = emptyList()
+    private var envioEnCurso = false
+
 
     // ─── Inicializar ─────────────────────────────────────────────────────────
 
@@ -74,11 +76,6 @@ class PedidoViewModel(
             }
             // NO mostrar Loading para agregar - es rapido en local
             try {
-                // Si no hay borrador aun, crearlo ahora
-                val id = _pedidoId.value
-                    ?: repository.crearPedidoBorrador(mesasIds, mozoId)
-                        .also { _pedidoId.value = it }
-
                 repository.agregarItemACuenta(
                     productoId     = productoId,
                     nombreProducto = nombreProducto,
@@ -109,8 +106,6 @@ class PedidoViewModel(
         nuevaCantidad: Int
     ) {
 
-        val pedidoIdActual = _pedidoId.value ?: return
-
         viewModelScope.launch {
 
             if (nuevaCantidad > detalle.cantidad) {
@@ -138,8 +133,6 @@ class PedidoViewModel(
         nuevaNota: String
     ) {
 
-        val pedidoIdActual = _pedidoId.value ?: return
-
         viewModelScope.launch {
 
             repository.actualizarNotaDetalle(
@@ -149,9 +142,6 @@ class PedidoViewModel(
         }
     }
     fun eliminarDetalle(detalle: DetallePedido) {
-
-        val pedidoIdActual = _pedidoId.value ?: return
-
         viewModelScope.launch {
 
             repository.eliminarDetalle(
@@ -161,9 +151,6 @@ class PedidoViewModel(
     }
 
     fun restaurarDetalle(detalle: DetallePedido) {
-
-        val pedidoIdActual = _pedidoId.value ?: return
-
         viewModelScope.launch {
 
             repository.restaurarDetalle(
@@ -174,27 +161,40 @@ class PedidoViewModel(
 
     // ─── Confirmar ────────────────────────────────────────────────────────────
 
-    fun confirmarPedido() {
-        val id = _pedidoId.value ?: run {
-            _uiState.value = UiState.Error("No hay pedido activo")
-            return
-        }
+    fun confirmarPedido(hayInternet: Boolean) {
+        if (envioEnCurso) return
+        envioEnCurso = true
+        val mesas = mesasIds
+
         viewModelScope.launch {
             _uiState.value = UiState.Loading
-            repository.confirmarPedido(mozoId).fold(
-                onSuccess = { pedidoId -> 
-                    _uiState.value = UiState.PedidoEnviado
-                    
-                    android.util.Log.d(
-                        "PedidoViewModel",
-                        "Pedido confirmado: $pedidoId - Redirigiendo inmediatamente"
-                    )
+
+            val resultado = if (hayInternet) {
+                repository.confirmarPedidoOnline(
+                    mozoId = mozoId,
+                    mesasIds = mesas
+                )
+            } else {
+                repository.confirmarPedidoOffline(
+                    mozoId = mozoId,
+                    mesasIds = mesas
+                )
+            }
+
+            resultado.fold(
+                onSuccess = {
+                    _uiState.value = if (hayInternet) {
+                        UiState.PedidoEnviado
+                    } else {
+                        UiState.PedidoEnviadoPendienteSincronizar
+                    }
                 },
                 onFailure = { e ->
                     android.util.Log.e("PedidoViewModel", "Error al confirmar: ${e.message}", e)
                     _uiState.value = UiState.Error(e.message ?: "Error al confirmar")
                 }
             )
+            envioEnCurso = false
         }
     }
 
