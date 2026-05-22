@@ -1,6 +1,7 @@
 package com.donabere.amm.ui.adapter
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import android.view.ViewGroup.GONE
 import android.view.ViewGroup.VISIBLE
@@ -15,7 +16,8 @@ import com.donabere.amm.model.enums.EstadoPedido
 class PedidosAdapter(
     private val onEliminarDetalle: (Pedido, DetallePedido) -> Unit,
     private val onAgregarPlato: (Pedido) -> Unit,
-    private val onCambiarEstadoPedido: (Pedido) -> Unit
+    private val onCambiarEstadoPedido: (Pedido) -> Unit,
+    private val onPagarCuenta: (Pedido) -> Unit
 ) : RecyclerView.Adapter<PedidosAdapter.PedidoViewHolder>() {
 
     private var pedidos: List<Pedido> = emptyList()
@@ -117,10 +119,39 @@ class PedidosAdapter(
                 EstadoPedido.ATENDIDO -> "Marcar pagado"
                 EstadoPedido.PAGADO -> "✓ Completado"
                 EstadoPedido.PAGADO_PARCIAL -> "Completar pago"
+                EstadoPedido.PAGO_EN_PROCESO -> "Pago en proceso"
             }
             
             binding.btnCambiarEstadoPedido.setOnClickListener {
                 onCambiarEstadoPedido(pedido)
+            }
+
+            binding.btnPagarCuenta.setOnClickListener {
+                onPagarCuenta(pedido)
+            }
+
+            when (pedido.estado) {
+
+                EstadoPedido.ATENDIDO -> {
+                    binding.btnCambiarEstadoPedido.visibility = View.GONE
+                    binding.btnPagarCuenta.visibility = View.VISIBLE
+                }
+
+                EstadoPedido.PAGO_EN_PROCESO,
+                EstadoPedido.PAGADO_PARCIAL -> {
+                    binding.btnCambiarEstadoPedido.visibility = View.GONE
+                    binding.btnPagarCuenta.visibility = View.VISIBLE
+                }
+
+                EstadoPedido.PAGADO -> {
+                    binding.btnCambiarEstadoPedido.visibility = View.GONE
+                    binding.btnPagarCuenta.visibility = View.GONE
+                }
+
+                else -> {
+                    binding.btnCambiarEstadoPedido.visibility = View.VISIBLE
+                    binding.btnPagarCuenta.visibility = View.GONE
+                }
             }
         }
     }

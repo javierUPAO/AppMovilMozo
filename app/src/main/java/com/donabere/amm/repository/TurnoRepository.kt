@@ -91,9 +91,9 @@ class TurnoRepository {
             .get()
             .await()
 
-/*if (!snapshot.isEmpty) {
-            throw Exception("Ya existe un turno registrado hoy")
-        }*/
+        if (!snapshot.isEmpty) {
+                    throw Exception("Ya existe un turno registrado hoy")
+                }
 
         val turno = hashMapOf(
             "mozoId" to mozoId,

@@ -5,6 +5,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.donabere.amm.model.Cuenta
 import com.donabere.amm.model.DetallePedido
 import com.donabere.amm.repository.PedidoRepository
 import kotlinx.coroutines.launch
@@ -42,23 +43,12 @@ class PedidoViewModel(
 
     // ─── Inicializar ─────────────────────────────────────────────────────────
 
-    fun iniciarPedido(mesasIds: List<String>) {
-        this.mesasIds = mesasIds
-        viewModelScope.launch {
-            _uiState.value = UiState.Loading
-            try {
-                val id = repository.crearPedidoBorrador(mesasIds, mozoId)
-                _pedidoId.value = id
-                _uiState.value = UiState.Idle
-            } catch (e: Exception) {
-                _uiState.value = UiState.Error("No se pudo iniciar el pedido: ${e.message}")
-            }
-        }
-    }
     fun iniciarMesa(mesasIds: List<String>)
     {
         this.mesasIds = mesasIds
     }
+
+
 
     // ─── Carrito ──────────────────────────────────────────────────────────────
 
@@ -186,6 +176,41 @@ class PedidoViewModel(
                 }
             )
             envioEnCurso = false
+        }
+    }
+
+    fun obtenerCuentas(
+        pedidoId: String,
+        onResult: (List<Cuenta>) -> Unit
+    ) {
+        viewModelScope.launch {
+
+            repository.obtenerCuentas(pedidoId).fold(
+                onSuccess = { cuentas ->
+                    onResult(cuentas)
+                },
+                onFailure = { e ->
+                    _uiState.value = UiState.Error(
+                        e.message ?: "Error cargando cuentas"
+                    )
+                }
+            )
+        }
+    }
+
+    fun pagarCuenta(
+        pedidoId: String,
+        cuentaId: String,
+        onSuccess: () -> Unit
+    ) {
+
+        viewModelScope.launch {
+
+            repository.pagarCuenta(pedidoId, cuentaId)
+                .onSuccess {
+
+                    onSuccess()
+                }
         }
     }
 
