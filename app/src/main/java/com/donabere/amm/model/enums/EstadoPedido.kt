@@ -8,5 +8,6 @@ enum class EstadoPedido {
     ATENDIDO,
     PAGADO,
     PAGADO_PARCIAL,
+    PAGO_EN_PROCESO,
     BORRADOR,
 }
