@@ -178,7 +178,11 @@ class CrearPedidoActivity : AppCompatActivity() {
         viewModel.estadoSincronizacion.observe(this) { estado ->
             when (estado) {
                 PedidoRepository.EstadoSincronizacion.PENDIENTE_SINCRONIZACION -> {
-                    mostrarSnackbar("📡 No hay conexión, se guardó de manera temporal...", duration = Snackbar.LENGTH_INDEFINITE)
+                    mostrarSnackbar(
+                        "📡 No hay conexión, se guardó de manera temporal...",
+                        duration = Snackbar.LENGTH_SHORT,
+                        anchorView = btnEnviarCocina
+                    )
                 }
                 else -> {
                     // No mostrar notificaciones de sincronización en esta Activity
@@ -299,7 +303,12 @@ class CrearPedidoActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun mostrarSnackbar(mensaje: String, isError: Boolean = false, duration: Int = Snackbar.LENGTH_LONG) {
+    private fun mostrarSnackbar(
+        mensaje: String,
+        isError: Boolean = false,
+        duration: Int = Snackbar.LENGTH_LONG,
+        anchorView: View? = null
+    ) {
         // Cerrar snackbar anterior
         snackbarActual?.dismiss()
         
@@ -308,6 +317,9 @@ class CrearPedidoActivity : AppCompatActivity() {
             mensaje,
             duration
         )
+        if (anchorView != null) {
+            snack.setAnchorView(anchorView)
+        }
         if (isError) snack.setBackgroundTint(getColor(R.color.error_color))
         snack.show()
         snackbarActual = snack
