@@ -71,11 +71,13 @@ class PedidoViewModel(
         imagenProducto: String = ""
     ) {
         viewModelScope.launch {
-            if (_uiState.value == UiState.Loading) {
-                _uiState.value = UiState.Idle
-            }
-            // NO mostrar Loading para agregar - es rapido en local
+            _uiState.value = UiState.Loading
             try {
+                // Si no hay borrador aún, crearlo ahora
+                val id = _pedidoId.value
+                    ?: repository.crearPedidoBorrador(mesasIds, mozoId)
+                        .also { _pedidoId.value = it }
+
                 repository.agregarItemACuenta(
                     productoId     = productoId,
                     nombreProducto = nombreProducto,
@@ -84,14 +86,8 @@ class PedidoViewModel(
                     nota           = nota,
                     imagenUrl      = imagenProducto
                 ).fold(
-                    onSuccess = {
-                        // Exito - mantener UI Idle (no bloquear)
-                        if (_uiState.value != UiState.Loading) {
-                            _uiState.value = UiState.Idle
-                        }
-                    },
+                    onSuccess = { _uiState.value = UiState.Idle },
                     onFailure = { e ->
-                        // Si falla, mostrar error en snackbar pero sin bloquear UI
                         _uiState.value = UiState.Error(e.message ?: "Error al agregar")
                     }
                 )
@@ -183,14 +179,9 @@ class PedidoViewModel(
 
             resultado.fold(
                 onSuccess = {
-                    _uiState.value = if (hayInternet) {
-                        UiState.PedidoEnviado
-                    } else {
-                        UiState.PedidoEnviadoPendienteSincronizar
-                    }
+                    _uiState.value = UiState.PedidoEnviado
                 },
                 onFailure = { e ->
-                    android.util.Log.e("PedidoViewModel", "Error al confirmar: ${e.message}", e)
                     _uiState.value = UiState.Error(e.message ?: "Error al confirmar")
                 }
             )
