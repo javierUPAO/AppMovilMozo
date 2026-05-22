@@ -319,127 +319,85 @@ class PedidoRepository {
      * 3. Marca las mesas como OCUPADA en la colección 'mesas'
      * 4. Descuenta el stock
      */
-    suspend fun confirmarPedido(mozoId: String): Result<Unit> {
+    suspend fun confirmarPedido(
+        mozoId: String,
+        mesasIds: List<String>
+    ): Result<Unit> {
 
         return try {
 
             // =========================
             // VALIDAR CUENTA ACTIVA
             // =========================
-
             val cuenta = cuentaActiva
                 ?: return Result.failure(
                     IllegalStateException("No hay cuenta activa")
                 )
 
-            // =========================
-            // OBTENER DETALLES ACTIVOS
-            // =========================
-
-            val detallesActivos = cuenta.detalles.filter {
-                !it.anulado
-            }
-
-            // =========================
-            // VALIDAR PRODUCTOS
-            // =========================
+            val detallesActivos = cuenta.detalles.filter { !it.anulado }
 
             if (detallesActivos.isEmpty()) {
-
                 return Result.failure(
-                    IllegalStateException(
-                        "El pedido no tiene productos"
-                    )
+                    IllegalStateException("El pedido no tiene productos")
                 )
             }
-
-            // =========================
-            // CALCULAR TOTAL
-            // =========================
 
             val total = detallesActivos.sumOf {
                 it.precioUnitario * it.cantidad
             }
 
             // =========================
-            // CREAR REFERENCIA PEDIDO
-            // =========================
-
-            val pedidoRef = pedidosRef.document()
-
-            val pedidoId = pedidoRef.id
-
-            // =========================
             // CREAR PEDIDO
             // =========================
+            val pedidoRef = pedidosRef.document()
 
             val pedido = Pedido(
-                id = pedidoId,
+                id = pedidoRef.id,
                 estado = EstadoPedido.PENDIENTE_PREPARACION,
                 totalPagar = total,
-                mesasIds = pedidoActual?.mesasIds ?: emptyList(),
+                mesasIds = mesasIds, // ✅ CORRECTO
                 mozoId = mozoId,
                 cuentas = emptyList()
             )
 
-            // =========================
-            // BATCH
-            // =========================
-
             val batch = db.batch()
 
-            // GUARDAR PEDIDO
-            batch.set(
-                pedidoRef,
-                pedido
-            )
+            batch.set(pedidoRef, pedido)
 
             // =========================
             // CREAR CUENTA
             // =========================
-
             val cuentaRef = pedidoRef
                 .collection("cuentas")
                 .document(cuenta.id)
 
-            val cuentaFirestore = cuenta.copy(
-                detalles = emptyList()
-            )
-
             batch.set(
                 cuentaRef,
-                cuentaFirestore
+                cuenta.copy(detalles = emptyList())
             )
 
             // =========================
             // CREAR DETALLES
             // =========================
-
             detallesActivos.forEach { detalle ->
-
                 val detalleRef = cuentaRef
                     .collection("detalles")
                     .document(detalle.id)
 
-                batch.set(
-                    detalleRef,
-                    detalle
-                )
+                batch.set(detalleRef, detalle)
             }
 
             // =========================
             // MARCAR MESAS OCUPADAS
             // =========================
-
-            pedidoActual?.mesasIds?.forEach { mesaId ->
-
+            mesasIds.forEach { mesaId -> // ✅ CORRECTO
                 val mesaRef = mesasRef.document(mesaId.trim())
 
                 batch.update(
                     mesaRef,
                     mapOf(
                         "estado" to "OCUPADA",
-                        "pedidoId" to pedidoId
+                        "pedidoId" to pedido.id
                     )
                 )
             }
@@ -447,15 +405,12 @@ class PedidoRepository {
             // =========================
             // COMMIT
             // =========================
-
             batch.commit().await()
 
             // =========================
             // DESCONTAR STOCK
             // =========================
-
             detallesActivos.forEach { detalle ->
-
                 descontarStock(
                     detalle.productoId,
                     detalle.cantidad
@@ -465,29 +420,14 @@ class PedidoRepository {
             // =========================
             // LIMPIAR MEMORIA
             // =========================
-
             cuentaActiva = null
-
             _detalles.postValue(emptyList())
-
             pedidoActual = null
-
             _pedido.postValue(null)
-
-            Log.d(
-                TAG,
-                "Pedido confirmado correctamente: $pedidoId"
-            )
 
             Result.success(Unit)
 
         } catch (e: Exception) {
-
-            Log.e(
-                TAG,
-                "Error al confirmar pedido: ${e.message}"
-            )
-
             Result.failure(e)
         }
     }
