@@ -15,7 +15,10 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.donabere.amm.databinding.FragmentListaPedidosBinding
+import com.donabere.amm.model.Pedido
+import com.donabere.amm.model.enums.EstadoPedido
 import com.donabere.amm.repository.PedidoRepository
+import com.donabere.amm.ui.DialogPagarCuentaFragment
 import com.donabere.amm.ui.adapter.PedidosAdapter
 import com.donabere.amm.viewmodel.PedidosViewModel
 import kotlinx.coroutines.launch
@@ -63,6 +66,9 @@ class ListaPedidosFragment : Fragment() {
             },
             onCambiarEstadoPedido = { pedido ->
                 mostrarDialogoCambiarEstado(pedido)
+            },
+            onPagarCuenta = { pedido ->
+                abrirDialogoPagarCuenta(pedido)
             }
         )
         
@@ -178,26 +184,39 @@ class ListaPedidosFragment : Fragment() {
             .show()
     }
 
-    private fun mostrarDialogoCambiarEstado(pedido: com.donabere.amm.model.Pedido) {
+    private fun abrirDialogoPagarCuenta(pedido: Pedido) {
+
+        val dialog = DialogPagarCuentaFragment.newInstance(pedido.id)
+
+        dialog.show(parentFragmentManager, "DialogPagarCuenta")
+    }
+
+    private fun mostrarDialogoCambiarEstado(pedido: Pedido) {
+
         val estadoActual = pedido.estado.name
+
         val proximoEstado = when (pedido.estado) {
-            com.donabere.amm.model.enums.EstadoPedido.BORRADOR -> "PENDIENTE_PREPARACION (Enviar a cocina)"
-            com.donabere.amm.model.enums.EstadoPedido.COMANDADO -> "PENDIENTE_PREPARACION"
-            com.donabere.amm.model.enums.EstadoPedido.PENDIENTE_PREPARACION -> "COCINA"
-            com.donabere.amm.model.enums.EstadoPedido.COCINA -> "LISTO_PARA_ENTREGAR"
-            com.donabere.amm.model.enums.EstadoPedido.LISTO_PARA_ENTREGAR -> "ATENDIDO"
-            com.donabere.amm.model.enums.EstadoPedido.ATENDIDO -> "PAGADO"
-            com.donabere.amm.model.enums.EstadoPedido.PAGADO -> "Completado"
-            com.donabere.amm.model.enums.EstadoPedido.PAGADO_PARCIAL -> "PAGADO"
+
+            EstadoPedido.BORRADOR -> "PENDIENTE_PREPARACION"
+            EstadoPedido.COMANDADO -> "PENDIENTE_PREPARACION"
+            EstadoPedido.PENDIENTE_PREPARACION -> "COCINA"
+            EstadoPedido.COCINA -> "LISTO_PARA_ENTREGAR"
+            EstadoPedido.LISTO_PARA_ENTREGAR -> "ATENDIDO"
+
+
+            EstadoPedido.ATENDIDO -> "LISTO PARA COBRAR (CUENTAS)"
+            EstadoPedido.PAGADO -> "Completado"
+            EstadoPedido.PAGADO_PARCIAL -> "Completado"
+            EstadoPedido.PAGO_EN_PROCESO -> "En proceso de pago"
         }
-        
+
         AlertDialog.Builder(requireContext())
             .setTitle("Cambiar estado del pedido")
-            .setMessage("Estado actual: $estadoActual\n\n¿Deseas cambiar a: $proximoEstado?")
-            .setPositiveButton("Sí, cambiar") { _, _ ->
+            .setMessage("Estado actual: $estadoActual\n\n¿Cambiar a: $proximoEstado?")
+            .setPositiveButton("Sí") { _, _ ->
                 cambiarEstadoPedido(pedido)
             }
-            .setNegativeButton("Cancelar") { dialog, _ -> dialog.dismiss() }
+            .setNegativeButton("Cancelar", null)
             .show()
     }
 

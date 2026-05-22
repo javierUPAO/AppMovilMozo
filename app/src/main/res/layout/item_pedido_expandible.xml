@@ -124,6 +124,13 @@
                     android:layout_height="wrap_content"
                     android:text="Siguiente estado" />
 
+                <Button
+                    android:id="@+id/btnPagarCuenta"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Pagar cuenta"
+                    android:backgroundTint="#F59E0B"/>
+
             </LinearLayout>
 
         </LinearLayout>

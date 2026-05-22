@@ -373,7 +373,7 @@ class PedidoRepository {
 
             batch.set(
                 cuentaRef,
-                cuenta.copy(detalles = emptyList())
+                cuenta.copy(detalles = emptyList(),total = total)
             )
 
             // =========================
@@ -521,6 +521,8 @@ class PedidoRepository {
             Log.e(TAG, "Error descontando stock $productoId: ${e.message}")
         }
     }
+
+
 
     // ─── Obtener pedidos del mozo del día ───────────────────────────────────
     
@@ -771,9 +773,10 @@ class PedidoRepository {
                 EstadoPedido.PENDIENTE_PREPARACION -> EstadoPedido.COCINA
                 EstadoPedido.COCINA -> EstadoPedido.LISTO_PARA_ENTREGAR
                 EstadoPedido.LISTO_PARA_ENTREGAR -> EstadoPedido.ATENDIDO
-                EstadoPedido.ATENDIDO -> EstadoPedido.PAGADO
+                EstadoPedido.ATENDIDO -> EstadoPedido.PAGO_EN_PROCESO
                 EstadoPedido.PAGADO -> EstadoPedido.PAGADO // Ya terminado
                 EstadoPedido.PAGADO_PARCIAL -> EstadoPedido.PAGADO
+                EstadoPedido.PAGO_EN_PROCESO -> EstadoPedido.PAGADO
             }
             
             // Si el nuevo estado es PAGADO, liberar mesas automáticamente
@@ -804,7 +807,123 @@ class PedidoRepository {
             Result.failure(e)
         }
     }
-    
+
+    suspend fun pagarCuenta(
+        pedidoId: String,
+        cuentaId: String
+    ): Result<Unit> {
+
+        return try {
+
+            val pedidoRef = pedidosRef.document(pedidoId)
+
+            val cuentaRef = pedidoRef
+                .collection("cuentas")
+                .document(cuentaId)
+
+            // =========================
+            // 1. MARCAR CUENTA COMO PAGADA
+            // =========================
+            cuentaRef.update(
+                "estadoPago",
+                EstadoCuenta.PAGADO.name
+            ).await()
+
+            // =========================
+            // 2. OBTENER TODAS LAS CUENTAS
+            // =========================
+            val cuentasSnapshot = pedidoRef
+                .collection("cuentas")
+                .get()
+                .await()
+
+            val cuentas = cuentasSnapshot.documents.mapNotNull {
+                it.toObject(Cuenta::class.java)
+            }
+
+            // =========================
+            // 3. VERIFICAR ESTADOS
+            // =========================
+            val todasPagadas = cuentas.all { it.estadoPago == EstadoCuenta.PAGADO }
+            val algunaPagada = cuentas.any { it.estadoPago == EstadoCuenta.PAGADO }
+
+            val nuevoEstadoPedido = when {
+                todasPagadas -> EstadoPedido.PAGADO
+                algunaPagada -> EstadoPedido.PAGADO_PARCIAL
+                else -> EstadoPedido.PAGO_EN_PROCESO
+            }
+
+            // =========================
+            // 4. ACTUALIZAR PEDIDO
+            // =========================
+            pedidoRef.update("estado", nuevoEstadoPedido).await()
+
+            if (todasPagadas) {
+
+                val pedidoSnapshot = pedidoRef.get().await()
+
+                val pedido = pedidoSnapshot.toObject(Pedido::class.java)
+
+                pedido?.mesasIds?.forEach { mesaId ->
+
+                    mesasRef.document(mesaId)
+                        .update(
+                            mapOf(
+                                "estado" to "LIBRE",
+                                "pedidoId" to null
+                            )
+                        )
+                        .await()
+                }
+            }
+
+            Result.success(Unit)
+
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun obtenerCuentas(
+        pedidoId: String
+    ): Result<List<Cuenta>> {
+
+        return try {
+
+            val cuentasSnapshot = pedidosRef
+                .document(pedidoId)
+                .collection("cuentas")
+                .get()
+                .await()
+
+            val cuentas = mutableListOf<Cuenta>()
+
+            for (doc in cuentasSnapshot.documents) {
+
+                val cuenta = doc.toObject(Cuenta::class.java)
+                    ?: continue
+
+                // obtener detalles
+                val detallesSnapshot = doc.reference
+                    .collection("detalles")
+                    .get()
+                    .await()
+
+                val detalles = detallesSnapshot.documents.mapNotNull {
+                    it.toObject(DetallePedido::class.java)
+                }
+
+                cuentas.add(
+                    cuenta.copy(detalles = detalles)
+                )
+            }
+
+            Result.success(cuentas)
+
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
     /**
      * Libera las mesas asociadas al pedido (marca como LIBRE)
      */
