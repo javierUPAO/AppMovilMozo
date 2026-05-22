@@ -114,6 +114,7 @@ class PedidosAdapter(
                 EstadoPedido.BORRADOR -> "Enviar a cocina"
                 EstadoPedido.COMANDADO -> "Enviar a cocina"
                 EstadoPedido.PENDIENTE_PREPARACION -> "Enviar a cocina"
+                EstadoPedido.PENDIENTE_CORRECCION_STOCK -> "Revisar stock"
                 EstadoPedido.COCINA -> "Marcar listo"
                 EstadoPedido.LISTO_PARA_ENTREGAR -> "Entregar"
                 EstadoPedido.ATENDIDO -> "Marcar pagado"

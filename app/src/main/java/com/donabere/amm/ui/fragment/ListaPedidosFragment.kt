@@ -199,6 +199,7 @@ class ListaPedidosFragment : Fragment() {
 
             EstadoPedido.BORRADOR -> "PENDIENTE_PREPARACION"
             EstadoPedido.COMANDADO -> "PENDIENTE_PREPARACION"
+            EstadoPedido.PENDIENTE_CORRECCION_STOCK -> "PENDIENTE_PREPARACION"
             EstadoPedido.PENDIENTE_PREPARACION -> "COCINA"
             EstadoPedido.COCINA -> "LISTO_PARA_ENTREGAR"
             EstadoPedido.LISTO_PARA_ENTREGAR -> "ATENDIDO"

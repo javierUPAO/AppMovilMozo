@@ -33,6 +33,7 @@ class PedidoViewModel(
     val pedido:   LiveData<*>                   = repository.observarPedido()
     val estadoSincronizacion: LiveData<PedidoRepository.EstadoSincronizacion> =
         repository.observarEstadoSincronizacion()
+    val alertaSincronizacion: LiveData<String?> = repository.observarAlertasSincronizacion()
 
     private val _pedidoId = MutableLiveData<String?>(null)
     val pedidoId: LiveData<String?> = _pedidoId
@@ -58,23 +59,20 @@ class PedidoViewModel(
         precioUnitario: Double,
         cantidad: Int = 1,
         nota: String = "",
-        imagenProducto: String = ""
+        imagenProducto: String = "",
+        hayInternet: Boolean
     ) {
         viewModelScope.launch {
             _uiState.value = UiState.Loading
             try {
-                // Si no hay borrador aún, crearlo ahora
-                val id = _pedidoId.value
-                    ?: repository.crearPedidoBorrador(mesasIds, mozoId)
-                        .also { _pedidoId.value = it }
-
                 repository.agregarItemACuenta(
                     productoId     = productoId,
                     nombreProducto = nombreProducto,
                     precioUnitario = precioUnitario,
                     cantidad       = cantidad,
                     nota           = nota,
-                    imagenUrl      = imagenProducto
+                    imagenUrl      = imagenProducto,
+                    validarStock   = hayInternet
                 ).fold(
                     onSuccess = { _uiState.value = UiState.Idle },
                     onFailure = { e ->
@@ -89,12 +87,13 @@ class PedidoViewModel(
 
     fun actualizarCantidad(
         detalle: DetallePedido,
-        nuevaCantidad: Int
+        nuevaCantidad: Int,
+        hayInternet: Boolean
     ) {
 
         viewModelScope.launch {
 
-            if (nuevaCantidad > detalle.cantidad) {
+            if (hayInternet && nuevaCantidad > detalle.cantidad) {
 
                 val stock = repository.obtenerStock(detalle.productoId)
 
@@ -169,7 +168,11 @@ class PedidoViewModel(
 
             resultado.fold(
                 onSuccess = {
-                    _uiState.value = UiState.PedidoEnviado
+                    _uiState.value = if (hayInternet) {
+                        UiState.PedidoEnviado
+                    } else {
+                        UiState.PedidoEnviadoPendienteSincronizar
+                    }
                 },
                 onFailure = { e ->
                     _uiState.value = UiState.Error(e.message ?: "Error al confirmar")
@@ -215,6 +218,10 @@ class PedidoViewModel(
     }
 
     fun resetUiState() { _uiState.value = UiState.Idle }
+
+    fun limpiarAlertaSincronizacion() {
+        repository.limpiarAlertaSincronizacion()
+    }
 
     // ─── Factory ──────────────────────────────────────────────────────────────
 

@@ -65,6 +65,7 @@ class CrearPedidoActivity : AppCompatActivity() {
     private lateinit var mesasIds: List<String>
     private var mozoId: String = ""
     private var ultimoEliminado: DetallePedido? = null
+    private var estadoSyncAnterior: PedidoRepository.EstadoSincronizacion? = null
 
     // ─── Lifecycle ────────────────────────────────────────────────────────────
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -125,10 +126,10 @@ class CrearPedidoActivity : AppCompatActivity() {
 
         carritoAdapter = DetallePedidoAdapter(
             onIncrement = { detalle ->
-                viewModel.actualizarCantidad(detalle, detalle.cantidad + 1)
+                viewModel.actualizarCantidad(detalle, detalle.cantidad + 1, isOnline())
             },
             onDecrement = { detalle ->
-                viewModel.actualizarCantidad(detalle, detalle.cantidad - 1)
+                viewModel.actualizarCantidad(detalle, detalle.cantidad - 1, isOnline())
             },
             onDelete = { detalle ->
                 eliminarConUndo(detalle)
@@ -186,10 +187,31 @@ class CrearPedidoActivity : AppCompatActivity() {
                         anchorView = btnEnviarCocina
                     )
                 }
+                PedidoRepository.EstadoSincronizacion.SINCRONIZADO -> {
+                    if (estadoSyncAnterior == PedidoRepository.EstadoSincronizacion.PENDIENTE_SINCRONIZACION) {
+                        mostrarSnackbar(
+                            "Pedidos pendientes enviados a cocina exitosamente",
+                            duration = Snackbar.LENGTH_SHORT,
+                            anchorView = btnEnviarCocina
+                        )
+                    }
+                }
                 else -> {
                     // No mostrar notificaciones de sincronización en esta Activity
                     // Solo el indicador de pendiente arriba
                 }
+            }
+            estadoSyncAnterior = estado
+        }
+
+        viewModel.alertaSincronizacion.observe(this) { mensaje ->
+            if (!mensaje.isNullOrBlank()) {
+                mostrarSnackbar(
+                    mensaje,
+                    duration = Snackbar.LENGTH_SHORT,
+                    anchorView = btnEnviarCocina
+                )
+                viewModel.limpiarAlertaSincronizacion()
             }
         }
 
@@ -262,7 +284,8 @@ class CrearPedidoActivity : AppCompatActivity() {
             precioUnitario = precio,
             cantidad       = cantidad,
             nota           = nota,
-            imagenProducto = imagen
+            imagenProducto = imagen,
+            hayInternet    = isOnline()
         )
     }
 
