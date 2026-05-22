@@ -13,43 +13,60 @@ class MesasRepository(private val apiService: ApiService) {
 
     suspend fun getMesas(): Result<List<Mesa>> {
         return try {
-            // 1. Lista base desde el backend REST
-            val response = apiService.obtenerMesas()
-            if (!response.isSuccessful) {
-                return Result.failure(Exception("Error al obtener mesas: ${response.code()}"))
-            }
-            val mesasBackend = response.body() ?: emptyList()
-
-            // 2. Estados desde Firestore (colección "mesas")
+            //Obtener datos de Firestore
             val estadosSnap = mesasRef.get().await()
 
-            // CORRECCIÓN AQUÍ: Ahora mapeamos el campo "estado" real, ya no el "pedidoId"
+            // Mapear datos de Firestore
             val estadosMap = estadosSnap.documents.associate { doc ->
                 doc.id to (doc.getString("estado") ?: "LIBRE")
             }
 
-            // 3. Cruzar: probar con "m{id}" primero, luego con "{id}" solo
-            val mesas = mesasBackend.map { mesaResponse ->
-                val idNumerico = mesaResponse.id.toString()
-                val idConM     = "m$idNumerico" // → "m1", "m2"...
-
-                // Buscar el estado en Firestore con cualquiera de los dos formatos
-                val estadoFirestore = estadosMap[idConM] ?: estadosMap[idNumerico] ?: "LIBRE"
-
-                // Si Firestore dice que está ocupada, marcamos true
-                val estaOcupada = estadoFirestore == "OCUPADA"
-
-                Mesa(
-                    id          = idConM,
-                    estado      = if (estaOcupada) EstadoMesa.OCUPADA else EstadoMesa.LIBRE,
-                    numClientes = mesaResponse.capacity,
-                    pedidoId    = null // Ya no guardamos el ID aquí, la pantalla de mesas lo buscará dinámicamente
-                )
+            // Intentar obtener mesas del backend
+            val mesasBackend = try {
+                val response = apiService.obtenerMesas()
+                if (response.isSuccessful) response.body() ?: emptyList()
+                else emptyList() // Si falla, usar datos de Firestore solamente
+            } catch (e: Exception) {
+                // Sin internet u otro error → usar datos de Firestore
+                android.util.Log.w("MesasRepository", "No se pudo conectar al backend: ${e.message}, usando datos de Firestore")
+                emptyList()
             }
 
-            Result.success(mesas)
+            // Si backend devolvió datos, usarlos
+            val mesas = if (mesasBackend.isNotEmpty()) {
+                mesasBackend.map { mesaResponse ->
+                    val idNumerico = mesaResponse.id.toString()
+                    val idConM     = "m$idNumerico"
+                    val estadoFirestore = estadosMap[idConM] ?: estadosMap[idNumerico] ?: "LIBRE"
+                    val estaOcupada = estadoFirestore == "OCUPADA"
+
+                    Mesa(
+                        id          = idConM,
+                        estado      = if (estaOcupada) EstadoMesa.OCUPADA else EstadoMesa.LIBRE,
+                        numClientes = mesaResponse.capacity,
+                        pedidoId    = null
+                    )
+                }
+            } else {
+                // Si backend falló, armar mesas solo desde Firestore
+                estadosMap.map { (idConM, estado) ->
+                    Mesa(
+                        id          = idConM,
+                        estado      = if (estado == "OCUPADA") EstadoMesa.OCUPADA else EstadoMesa.LIBRE,
+                        numClientes = 0, // No tenemos capacidad desde Firestore
+                        pedidoId    = null
+                    )
+                }
+            }
+
+            if (mesas.isEmpty()) {
+                Result.failure(Exception("No hay mesas disponibles"))
+            } else {
+                Result.success(mesas)
+            }
 
         } catch (e: Exception) {
+            android.util.Log.e("MesasRepository", "Error al obtener mesas: ${e.message}")
             Result.failure(e)
         }
     }

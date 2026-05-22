@@ -69,9 +69,12 @@ class PedidoViewModel(
         imagenProducto: String = ""
     ) {
         viewModelScope.launch {
-            _uiState.value = UiState.Loading
+            if (_uiState.value == UiState.Loading) {
+                _uiState.value = UiState.Idle
+            }
+            // NO mostrar Loading para agregar - es rapido en local
             try {
-                // Si no hay borrador aún, crearlo ahora
+                // Si no hay borrador aun, crearlo ahora
                 val id = _pedidoId.value
                     ?: repository.crearPedidoBorrador(mesasIds, mozoId)
                         .also { _pedidoId.value = it }
@@ -84,8 +87,14 @@ class PedidoViewModel(
                     nota           = nota,
                     imagenUrl      = imagenProducto
                 ).fold(
-                    onSuccess = { _uiState.value = UiState.Idle },
+                    onSuccess = {
+                        // Exito - mantener UI Idle (no bloquear)
+                        if (_uiState.value != UiState.Loading) {
+                            _uiState.value = UiState.Idle
+                        }
+                    },
                     onFailure = { e ->
+                        // Si falla, mostrar error en snackbar pero sin bloquear UI
                         _uiState.value = UiState.Error(e.message ?: "Error al agregar")
                     }
                 )
@@ -173,8 +182,16 @@ class PedidoViewModel(
         viewModelScope.launch {
             _uiState.value = UiState.Loading
             repository.confirmarPedido(mozoId).fold(
-                onSuccess = { _uiState.value = UiState.PedidoEnviado },
+                onSuccess = { pedidoId -> 
+                    _uiState.value = UiState.PedidoEnviado
+                    
+                    android.util.Log.d(
+                        "PedidoViewModel",
+                        "Pedido confirmado: $pedidoId - Redirigiendo inmediatamente"
+                    )
+                },
                 onFailure = { e ->
+                    android.util.Log.e("PedidoViewModel", "Error al confirmar: ${e.message}", e)
                     _uiState.value = UiState.Error(e.message ?: "Error al confirmar")
                 }
             )

@@ -200,20 +200,24 @@ class CrearPedidoActivity : AppCompatActivity() {
                         viewModel.detalles.value?.isNotEmpty() == true
                 }
                 is PedidoViewModel.UiState.PedidoEnviado -> {
-                    // Pedido enviado exitosamente - mostrar feedback visual y redirigir
+                    // Pedido enviado exitosamente CON CONEXIÓN
                     progressBar.visibility = View.GONE
-                    mostrarSnackbar("✅ Pedido enviado a cocina", duration = Snackbar.LENGTH_SHORT)
-                    android.util.Log.d("CrearPedidoActivity", "PedidoEnviado: finalizando Activity")
-                    setResult(Activity.RESULT_OK)
-                    // Redirigir después de mostrar snackbar brevemente
-                    rvCarrito.postDelayed({ finish() }, 1500)
+                    mostrarSnackbar("Pedido enviado", duration = Snackbar.LENGTH_SHORT)
+                    android.util.Log.d("CrearPedidoActivity", "PedidoEnviado: redirigiendo a Mesas")
+                    setResult(Activity.RESULT_OK) 
+                    finish()
                 }
                 is PedidoViewModel.UiState.PedidoEnviadoPendienteSincronizar -> {
-                    // Ya no se usa (el flujo es igual con y sin conexión)
+                    // Pedido guardado sin conexion
                     progressBar.visibility = View.GONE
-                    mostrarSnackbar("✅ Pedido guardado (sincronizando...)", duration = Snackbar.LENGTH_SHORT)
+                    mostrarSnackbar(
+                        "Se guardó, se sincronizará cuando haya conexión",
+                        duration = Snackbar.LENGTH_SHORT
+                    )
+                    android.util.Log.d("CrearPedidoActivity", "PedidoEnviadoPendiente: redirigiendo a Mesas")
                     setResult(Activity.RESULT_OK)
-                    rvCarrito.postDelayed({ finish() }, 1500)
+                    // Redirigir, no esperar sincronización
+                    finish()
                 }
                 is PedidoViewModel.UiState.Success -> {
                     progressBar.visibility = View.GONE
@@ -225,7 +229,7 @@ class CrearPedidoActivity : AppCompatActivity() {
                     btnEnviarCocina.isEnabled =
                         viewModel.detalles.value?.isNotEmpty() == true
                     android.util.Log.d("CrearPedidoActivity", "Error: ${state.mensaje}")
-                    mostrarSnackbar("⚠️ ${state.mensaje}", isError = true)
+                    mostrarSnackbar("${state.mensaje}", isError = true)
                     viewModel.resetUiState()
                 }
             }

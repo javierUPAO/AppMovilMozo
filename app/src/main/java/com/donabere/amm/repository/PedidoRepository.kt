@@ -10,7 +10,9 @@ import com.donabere.amm.model.enums.EstadoCuenta
 import com.donabere.amm.model.enums.EstadoPedido
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Source
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.Result.Companion.failure
 
 private const val TAG = "PedidoRepository"
@@ -20,10 +22,10 @@ class PedidoRepository {
 
     private val db         = FirebaseFirestore.getInstance()
     private val pedidosRef = db.collection("pedidos")
-    private val mesasRef   = db.collection("mesas") // Corregido: Apunta directamente a mesas
+    private val mesasRef   = db.collection("mesas")
     private val stockRef   = db.collection("productos")
 
-    // ─── Estado en memoria (borrador antes de enviar a cocina) ───────────────
+    // ─── Estado en memoria ───────────────
 
     private var pedidoActual: Pedido? = null
     private val detallesBorrador = mutableListOf<DetallePedido>()
@@ -42,7 +44,6 @@ class PedidoRepository {
     fun observarPedido():   LiveData<Pedido?>             = _pedido
     fun observarEstadoSincronizacion(): LiveData<EstadoSincronizacion> = _estadoSincronizacion
 
-    // Compatibilidad con ViewModel existente
     fun getDetallesByPedido(pedidoId: String): LiveData<List<DetallePedido>> = _detalles
     fun getPedidoActivoPorMesa(mesaId: String): LiveData<Pedido?>             = _pedido
 
@@ -51,6 +52,7 @@ class PedidoRepository {
     /**
      * Crea el documento del pedido en Firestore como PENDIENTE_PREPARACION.
      * Los detalles se guardan solo en memoria hasta confirmarPedido().
+     * No espera la red para no bloquear en modo offline.
      */
     suspend fun crearPedidoBorrador(mesasIds: List<String>, mozoId: String): String {
         // Corregido: Asegurar que los IDs tengan el formato "m1", "m2", etc.
@@ -65,8 +67,14 @@ class PedidoRepository {
             "totalPagar" to 0.0,
             "creadoEn"   to Timestamp.now() // Corregido: Se guarda como Timestamp nativo de Firebase
         )
-        val docRef   = pedidosRef.add(data).await()
-        val pedidoId = docRef.id
+        val pedidoId = pedidosRef.document().id
+
+        // Guardar sin esperar (Firestore maneja offline cache)
+        pedidosRef.document(pedidoId)
+            .set(data)
+            .addOnFailureListener { e ->
+                Log.w(TAG, "No se pudo guardar borrador en Firestore (offline ok): ${e.message}")
+            }
 
         pedidoActual = Pedido(
             id       = pedidoId,
@@ -307,10 +315,13 @@ class PedidoRepository {
 
     suspend fun obtenerStock(productoId: String): Int? {
         return try {
-            val doc = stockRef.document(productoId).get().await()
-            if (doc.exists()) doc.getLong("stock")?.toInt() else null
+            // Leer del cache local para no bloquear en modo offline
+            val doc = withTimeoutOrNull(300) {
+                stockRef.document(productoId).get(Source.CACHE).await()
+            }
+            if (doc?.exists() == true) doc.getLong("stock")?.toInt() else null
         } catch (e: Exception) {
-            Log.e(TAG, "Error stock: ${e.message}")
+            Log.w(TAG, "No se puede obtener stock (offline ok): ${e.message}")
             null
         }
     }
@@ -324,7 +335,7 @@ class PedidoRepository {
      * 3. Marca las mesas como OCUPADA en la colección 'mesas'
      * 4. Descuenta el stock
      */
-    suspend fun confirmarPedido(mozoId: String): Result<Unit> {
+    suspend fun confirmarPedido(mozoId: String): Result<String> {
 
         return try {
 
@@ -450,22 +461,36 @@ class PedidoRepository {
             }
 
             // =========================
-            // COMMIT
+            // COMMIT (SIN ESPERAR - Fire and forget)
             // =========================
-
-            batch.commit().await()
+            
+            // NO esperamos el commit para no bloquear el UI
+            // Firestore lo hace en background y sincroniza automáticamente
+            batch.commit()
+                .addOnFailureListener { error ->
+                    Log.e(TAG, "Error al hacer commit del pedido: ${error.message}")
+                }
+                .addOnSuccessListener {
+                    Log.d(TAG, "Commit del pedido completado: $pedidoId")
+                }
 
             // =========================
-            // DESCONTAR STOCK
+            // DESCONTAR STOCK (async, sin esperar)
             // =========================
 
             detallesActivos.forEach { detalle ->
-
-                descontarStock(
+                // Fire and forget - descontar en background sin bloquear
+                descontarStockAsync(
                     detalle.productoId,
                     detalle.cantidad
                 )
             }
+
+            // =========================
+            // INICIAR MONITOREO SINCRONIZACIÓN
+            // =========================
+            
+            iniciarMonitoreoSincronizacion(pedidoId)
 
             // =========================
             // LIMPIAR MEMORIA
@@ -484,7 +509,7 @@ class PedidoRepository {
                 "Pedido confirmado correctamente: $pedidoId"
             )
 
-            Result.success(Unit)
+            Result.success(pedidoId)
 
         } catch (e: Exception) {
 
@@ -585,6 +610,26 @@ class PedidoRepository {
         } catch (e: Exception) {
             Log.e(TAG, "Error descontando stock $productoId: ${e.message}")
         }
+    }
+
+    /**
+     * Descuenta stock SIN BLOQUEAR - fire and forget
+     */
+    private fun descontarStockAsync(productoId: String, cantidad: Int) {
+        val docRef = stockRef.document(productoId)
+        
+        // Fire and forget - no esperar
+        docRef.get()
+            .addOnSuccessListener { snapshot ->
+                val stockActual = snapshot.getLong("stock")?.toInt() ?: return@addOnSuccessListener
+                docRef.update("stock", maxOf(0, stockActual - cantidad))
+                    .addOnFailureListener { e ->
+                        Log.e(TAG, "Error actualizando stock $productoId: ${e.message}")
+                    }
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "Error obteniendo stock $productoId: ${e.message}")
+            }
     }
 
     // ─── Obtener pedidos del mozo del día ───────────────────────────────────
