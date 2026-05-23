@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
 class MesasViewModel(application: Application) : AndroidViewModel(application) {
 
     private val apiService      = RetrofitClient.getApiService(application)
-    private val mesasRepository = MesasRepository(apiService)
+    private val mesasRepository = MesasRepository()
     private val mozoRepository  = MozoRepository()
 
     // ── mozoId: tanto como campo directo (para leer rápido) como LiveData ──
