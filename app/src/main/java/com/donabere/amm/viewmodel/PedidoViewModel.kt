@@ -17,9 +17,10 @@ class PedidoViewModel(
 
     // ─── Estado UI ────────────────────────────────────────────────────────────
     sealed class UiState {
-        object Idle          : UiState()
-        object Loading       : UiState()
-        object PedidoEnviado : UiState()
+        object Idle                              : UiState()
+        object Loading                           : UiState()
+        object PedidoEnviado                     : UiState()  // Enviado con éxito
+        object PedidoEnviadoPendienteSincronizar : UiState()  // Guardado, pendiente sincronización
         data class Success(val mensaje: String) : UiState()
         data class Error(val mensaje: String)   : UiState()
     }
@@ -30,11 +31,15 @@ class PedidoViewModel(
     // ─── Datos observables ────────────────────────────────────────────────────
     val detalles: LiveData<List<DetallePedido>> = repository.observarDetalles()
     val pedido:   LiveData<*>                   = repository.observarPedido()
+    val estadoSincronizacion: LiveData<PedidoRepository.EstadoSincronizacion> =
+        repository.observarEstadoSincronizacion()
+    val alertaSincronizacion: LiveData<String?> = repository.observarAlertasSincronizacion()
 
     private val _pedidoId = MutableLiveData<String?>(null)
     val pedidoId: LiveData<String?> = _pedidoId
 
     private var mesasIds: List<String> = emptyList()
+    private var envioEnCurso = false
 
 
     // ─── Inicializar ─────────────────────────────────────────────────────────
@@ -54,19 +59,20 @@ class PedidoViewModel(
         precioUnitario: Double,
         cantidad: Int = 1,
         nota: String = "",
-        imagenProducto: String = ""
+        imagenProducto: String = "",
+        hayInternet: Boolean
     ) {
         viewModelScope.launch {
             _uiState.value = UiState.Loading
             try {
-
                 repository.agregarItemACuenta(
                     productoId     = productoId,
                     nombreProducto = nombreProducto,
                     precioUnitario = precioUnitario,
                     cantidad       = cantidad,
                     nota           = nota,
-                    imagenUrl      = imagenProducto
+                    imagenUrl      = imagenProducto,
+                    validarStock   = hayInternet
                 ).fold(
                     onSuccess = { _uiState.value = UiState.Idle },
                     onFailure = { e ->
@@ -81,14 +87,13 @@ class PedidoViewModel(
 
     fun actualizarCantidad(
         detalle: DetallePedido,
-        nuevaCantidad: Int
+        nuevaCantidad: Int,
+        hayInternet: Boolean
     ) {
-
-        val pedidoIdActual = _pedidoId.value ?: return
 
         viewModelScope.launch {
 
-            if (nuevaCantidad > detalle.cantidad) {
+            if (hayInternet && nuevaCantidad > detalle.cantidad) {
 
                 val stock = repository.obtenerStock(detalle.productoId)
 
@@ -113,8 +118,6 @@ class PedidoViewModel(
         nuevaNota: String
     ) {
 
-        val pedidoIdActual = _pedidoId.value ?: return
-
         viewModelScope.launch {
 
             repository.actualizarNotaDetalle(
@@ -124,9 +127,6 @@ class PedidoViewModel(
         }
     }
     fun eliminarDetalle(detalle: DetallePedido) {
-
-        val pedidoIdActual = _pedidoId.value ?: return
-
         viewModelScope.launch {
 
             repository.eliminarDetalle(
@@ -136,9 +136,6 @@ class PedidoViewModel(
     }
 
     fun restaurarDetalle(detalle: DetallePedido) {
-
-        val pedidoIdActual = _pedidoId.value ?: return
-
         viewModelScope.launch {
 
             repository.restaurarDetalle(
@@ -149,24 +146,39 @@ class PedidoViewModel(
 
     // ─── Confirmar ────────────────────────────────────────────────────────────
 
-    fun confirmarPedido() {
-        val pedidoIdActual = _pedidoId.value
+    fun confirmarPedido(hayInternet: Boolean) {
+        if (envioEnCurso) return
+        envioEnCurso = true
         val mesas = mesasIds
 
         viewModelScope.launch {
             _uiState.value = UiState.Loading
 
-            repository.confirmarPedido(
-                mozoId = mozoId,
-                mesasIds = mesas
-            ).fold(
+            val resultado = if (hayInternet) {
+                repository.confirmarPedidoOnline(
+                    mozoId = mozoId,
+                    mesasIds = mesas
+                )
+            } else {
+                repository.confirmarPedidoOffline(
+                    mozoId = mozoId,
+                    mesasIds = mesas
+                )
+            }
+
+            resultado.fold(
                 onSuccess = {
-                    _uiState.value = UiState.PedidoEnviado
+                    _uiState.value = if (hayInternet) {
+                        UiState.PedidoEnviado
+                    } else {
+                        UiState.PedidoEnviadoPendienteSincronizar
+                    }
                 },
                 onFailure = { e ->
                     _uiState.value = UiState.Error(e.message ?: "Error al confirmar")
                 }
             )
+            envioEnCurso = false
         }
     }
 
@@ -206,6 +218,10 @@ class PedidoViewModel(
     }
 
     fun resetUiState() { _uiState.value = UiState.Idle }
+
+    fun limpiarAlertaSincronizacion() {
+        repository.limpiarAlertaSincronizacion()
+    }
 
     // ─── Factory ──────────────────────────────────────────────────────────────
 

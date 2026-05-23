@@ -83,7 +83,8 @@ class MesasActivity : AppCompatActivity() {
                             // Pedido activo = cualquier estado distinto de BORRADOR o PAGADO
                             val estadosActivos = setOf(
                                 "COMANDADO", "COCINA",
-                                "PENDIENTE_PREPARACION", "LISTO_PARA_ENTREGAR", "ATENDIDO"
+                                "PENDIENTE_PREPARACION", "PENDIENTE_CORRECCION_STOCK",
+                                "LISTO_PARA_ENTREGAR", "ATENDIDO"
                             )
                             val doc = snapshot.documents.firstOrNull {
                                 it.getString("estado") in estadosActivos
@@ -120,7 +121,8 @@ class MesasActivity : AppCompatActivity() {
     private fun buscarPedidoPorStringLegacy(mesaId: String) {
         val estadosActivos = setOf(
             "COMANDADO", "COCINA",
-            "PENDIENTE_PREPARACION", "LISTO_PARA_ENTREGAR", "ATENDIDO"
+            "PENDIENTE_PREPARACION", "PENDIENTE_CORRECCION_STOCK",
+            "LISTO_PARA_ENTREGAR", "ATENDIDO"
         )
         db.collection("pedidos")
             .get()

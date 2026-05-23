@@ -37,7 +37,11 @@ class PedidosViewModel(private val repository: PedidoRepository) : ViewModel() {
         
         val pedidosFiltrados = when (filtro) {
             "TODO" -> pedidosOriginales
-            "PENDIENTE" -> pedidosOriginales.filter { it.estado == EstadoPedido.BORRADOR || it.estado == EstadoPedido.PENDIENTE_PREPARACION }
+            "PENDIENTE" -> pedidosOriginales.filter {
+                it.estado == EstadoPedido.BORRADOR ||
+                    it.estado == EstadoPedido.PENDIENTE_PREPARACION ||
+                    it.estado == EstadoPedido.PENDIENTE_CORRECCION_STOCK
+            }
             "COCINA" -> pedidosOriginales.filter { it.estado == EstadoPedido.COCINA }
             "LISTO_ENT" -> pedidosOriginales.filter { it.estado == EstadoPedido.LISTO_PARA_ENTREGAR }
             "PAGADO" -> pedidosOriginales.filter { it.estado == EstadoPedido.PAGADO }
