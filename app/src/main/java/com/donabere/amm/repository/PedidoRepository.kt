@@ -361,55 +361,76 @@ class PedidoRepository {
         mozoId: String,
         mesasIds: List<String>
     ): Result<Unit> {
-        return try {
-            val cuenta = cuentaActiva
-                ?: return Result.failure(IllegalStateException("No hay cuenta activa"))
 
-            val pedidoExistente = pedidoActual
-            val pedidoId = pedidoExistente?.id ?: pedidosRef.document().id
-            val mesas = if (pedidoExistente?.mesasIds?.isNotEmpty() == true) {
-                pedidoExistente.mesasIds
-            } else {
-                mesasIds
-            }
+        return try {
+
+            // =========================
+            // VALIDAR CUENTA ACTIVA
+            // =========================
+            val cuenta = cuentaActiva
+                ?: return Result.failure(
+                    IllegalStateException("No hay cuenta activa")
+                )
 
             val detallesActivos = cuenta.detalles.filter { !it.anulado }
+
             if (detallesActivos.isEmpty()) {
-                return Result.failure(IllegalStateException("El pedido no tiene productos"))
+                return Result.failure(
+                    IllegalStateException("El pedido no tiene productos")
+                )
             }
 
-            val total = detallesActivos.sumOf { it.precioUnitario * it.cantidad }
-            val pedidoRef = pedidosRef.document(pedidoId)
+            val total = detallesActivos.sumOf {
+                it.precioUnitario * it.cantidad
+            }
+
+            // =========================
+            // CREAR PEDIDO
+            // =========================
+            val pedidoRef = pedidosRef.document()
+
             val pedido = Pedido(
-                id = pedidoId,
+                id = pedidoRef.id,
                 estado = EstadoPedido.PENDIENTE_PREPARACION,
                 totalPagar = total,
-                mesasIds = mesas,
-                mozoId = pedidoExistente?.mozoId ?: mozoId,
+                mesasIds = mesasIds, // ✅ CORRECTO
+                mozoId = mozoId,
                 cuentas = emptyList()
             )
 
             val batch = db.batch()
+
             batch.set(pedidoRef, pedido)
 
+            // =========================
+            // CREAR CUENTA
+            // =========================
             val cuentaRef = pedidoRef
                 .collection("cuentas")
                 .document(cuenta.id)
 
             batch.set(
                 cuentaRef,
-                cuenta.copy(detalles = emptyList(), total = total)
+                cuenta.copy(detalles = emptyList(),total = total)
             )
 
+            // =========================
+            // CREAR DETALLES
+            // =========================
             detallesActivos.forEach { detalle ->
                 val detalleRef = cuentaRef
                     .collection("detalles")
                     .document(detalle.id)
+
                 batch.set(detalleRef, detalle)
             }
 
-            mesas.forEach { mesaId ->
+            // =========================
+            // MARCAR MESAS OCUPADAS
+            // =========================
+            mesasIds.forEach { mesaId -> // ✅ CORRECTO
                 val mesaRef = mesasRef.document(mesaId.trim())
+
                 batch.update(
                     mesaRef,
                     mapOf(
@@ -419,20 +440,31 @@ class PedidoRepository {
                 )
             }
 
+            // =========================
+            // COMMIT
+            // =========================
             batch.commit().await()
 
-            iniciarMonitoreoSincronizacion(pedidoId)
-
+            // =========================
+            // DESCONTAR STOCK
+            // =========================
             detallesActivos.forEach { detalle ->
-                descontarStock(detalle.productoId, detalle.cantidad)
+                descontarStock(
+                    detalle.productoId,
+                    detalle.cantidad
+                )
             }
 
+            // =========================
+            // LIMPIAR MEMORIA
+            // =========================
             cuentaActiva = null
             _detalles.postValue(emptyList())
             pedidoActual = null
             _pedido.postValue(null)
 
             Result.success(Unit)
+
         } catch (e: Exception) {
             Result.failure(e)
         }
