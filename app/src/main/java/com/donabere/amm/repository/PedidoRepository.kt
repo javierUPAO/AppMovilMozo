@@ -16,12 +16,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 
 private const val TAG = "PedidoRepository"
 
 
 class PedidoRepository {
+
+    companion object {
+        private val stockValidationMutex = Mutex()
+    }
 
     private val db         = FirebaseFirestore.getInstance()
     private val pedidosRef = db.collection("pedidos")
@@ -1091,11 +1097,15 @@ class PedidoRepository {
                     if (nuevoEstado == EstadoSincronizacion.SINCRONIZADO &&
                         !pedidosValidadosStock.contains(pedidoId)) {
                         repoScope.launch {
-                            val mensaje = validarStockPedido(pedidoId)
-                            if (mensaje != null) {
-                                _alertaSincronizacion.postValue(mensaje)
+                            Companion.stockValidationMutex.withLock {
+                                if (!pedidosValidadosStock.contains(pedidoId)) {
+                                    val mensaje = validarStockPedido(pedidoId)
+                                    if (mensaje != null) {
+                                        _alertaSincronizacion.postValue(mensaje)
+                                    }
+                                    pedidosValidadosStock.add(pedidoId)
+                                }
                             }
-                            pedidosValidadosStock.add(pedidoId)
                         }
                     }
                     estadoSincronizacionAnterior = nuevoEstado
