@@ -161,7 +161,7 @@
                 android:id="@+id/btn_enviar_cocina"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
-                android:text="Enviar a cocina"
+                android:text="Crear pedido"
                 android:textSize="16sp"
                 android:enabled="false"
                 android:layout_marginStart="16dp"

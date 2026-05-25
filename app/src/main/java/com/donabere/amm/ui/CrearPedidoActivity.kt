@@ -4,6 +4,8 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.view.View
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -57,11 +59,13 @@ class CrearPedidoActivity : AppCompatActivity() {
     private lateinit var progressBar: ProgressBar
 
     private lateinit var carritoAdapter: DetallePedidoAdapter
+    private var snackbarActual: Snackbar? = null
 
     // ─── Datos ────────────────────────────────────────────────────────────────
     private lateinit var mesasIds: List<String>
     private var mozoId: String = ""
     private var ultimoEliminado: DetallePedido? = null
+    private var estadoSyncAnterior: PedidoRepository.EstadoSincronizacion? = null
 
     // ─── Lifecycle ────────────────────────────────────────────────────────────
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -77,7 +81,8 @@ class CrearPedidoActivity : AppCompatActivity() {
         setupObservers()
 
         // Iniciar el borrador del pedido
-        viewModel.iniciarPedido(mesasIds)
+        //viewModel.iniciarPedido(mesasIds)
+        viewModel.iniciarMesa(mesasIds)
     }
 
     // ─── Setup ────────────────────────────────────────────────────────────────
@@ -102,9 +107,9 @@ class CrearPedidoActivity : AppCompatActivity() {
         val tabLayout  = findViewById<com.google.android.material.tabs.TabLayout>(R.id.tab_categorias)
 
 
-        val adapter = PaginaMenuAdapter(this) { productoId, nombre, precio ->
+        val adapter = PaginaMenuAdapter(this) { productoId, nombre, precio, imagen ->
 
-            agregarAlCarrito(productoId, nombre, precio)
+            agregarAlCarrito(productoId, nombre, precio, imagen)
         }
         viewPager.adapter = adapter
 
@@ -121,10 +126,10 @@ class CrearPedidoActivity : AppCompatActivity() {
 
         carritoAdapter = DetallePedidoAdapter(
             onIncrement = { detalle ->
-                viewModel.actualizarCantidad(detalle, detalle.cantidad + 1)
+                viewModel.actualizarCantidad(detalle, detalle.cantidad + 1, isOnline())
             },
             onDecrement = { detalle ->
-                viewModel.actualizarCantidad(detalle, detalle.cantidad - 1)
+                viewModel.actualizarCantidad(detalle, detalle.cantidad - 1, isOnline())
             },
             onDelete = { detalle ->
                 eliminarConUndo(detalle)
@@ -172,7 +177,46 @@ class CrearPedidoActivity : AppCompatActivity() {
             }
         }
 
+        // Solo mostrar el indicador de PENDIENTE (sin conexión), no notificaciones de sincronización
+        viewModel.estadoSincronizacion.observe(this) { estado ->
+            when (estado) {
+                PedidoRepository.EstadoSincronizacion.PENDIENTE_SINCRONIZACION -> {
+                    mostrarSnackbar(
+                        "📡 No hay conexión, se guardó de manera temporal...",
+                        duration = Snackbar.LENGTH_SHORT,
+                        anchorView = btnEnviarCocina
+                    )
+                }
+                PedidoRepository.EstadoSincronizacion.SINCRONIZADO -> {
+                    if (estadoSyncAnterior == PedidoRepository.EstadoSincronizacion.PENDIENTE_SINCRONIZACION) {
+                        mostrarSnackbar(
+                            "Pedidos pendientes enviados a cocina exitosamente",
+                            duration = Snackbar.LENGTH_SHORT,
+                            anchorView = btnEnviarCocina
+                        )
+                    }
+                }
+                else -> {
+                    // No mostrar notificaciones de sincronización en esta Activity
+                    // Solo el indicador de pendiente arriba
+                }
+            }
+            estadoSyncAnterior = estado
+        }
+
+        viewModel.alertaSincronizacion.observe(this) { mensaje ->
+            if (!mensaje.isNullOrBlank()) {
+                mostrarSnackbar(
+                    mensaje,
+                    duration = Snackbar.LENGTH_SHORT,
+                    anchorView = btnEnviarCocina
+                )
+                viewModel.limpiarAlertaSincronizacion()
+            }
+        }
+
         viewModel.uiState.observe(this) { state ->
+            android.util.Log.d("CrearPedidoActivity", "UiState cambió a: $state")
             when (state) {
                 is PedidoViewModel.UiState.Loading -> {
                     progressBar.visibility = View.VISIBLE
@@ -184,10 +228,24 @@ class CrearPedidoActivity : AppCompatActivity() {
                         viewModel.detalles.value?.isNotEmpty() == true
                 }
                 is PedidoViewModel.UiState.PedidoEnviado -> {
+                    // Pedido enviado exitosamente CON CONEXIÓN
                     progressBar.visibility = View.GONE
-                    mostrarSnackbar("✅ Pedido enviado a cocina")
+                    mostrarSnackbar("Pedido enviado", duration = Snackbar.LENGTH_SHORT)
+                    android.util.Log.d("CrearPedidoActivity", "PedidoEnviado: redirigiendo a Mesas")
+                    setResult(Activity.RESULT_OK) 
+                    finish()
+                }
+                is PedidoViewModel.UiState.PedidoEnviadoPendienteSincronizar -> {
+                    // Pedido guardado sin conexion
+                    progressBar.visibility = View.GONE
+                    mostrarSnackbar(
+                        "Se guardó, se sincronizará cuando haya conexión",
+                        duration = Snackbar.LENGTH_SHORT
+                    )
+                    android.util.Log.d("CrearPedidoActivity", "PedidoEnviadoPendiente: redirigiendo a Mesas")
                     setResult(Activity.RESULT_OK)
-                    rvCarrito.postDelayed({ finish() }, 1500)
+                    // Redirigir, no esperar sincronización
+                    finish()
                 }
                 is PedidoViewModel.UiState.Success -> {
                     progressBar.visibility = View.GONE
@@ -198,7 +256,8 @@ class CrearPedidoActivity : AppCompatActivity() {
                     progressBar.visibility = View.GONE
                     btnEnviarCocina.isEnabled =
                         viewModel.detalles.value?.isNotEmpty() == true
-                    mostrarSnackbar("⚠️ ${state.mensaje}", isError = true)
+                    android.util.Log.d("CrearPedidoActivity", "Error: ${state.mensaje}")
+                    mostrarSnackbar("${state.mensaje}", isError = true)
                     viewModel.resetUiState()
                 }
             }
@@ -215,6 +274,7 @@ class CrearPedidoActivity : AppCompatActivity() {
         productoId: String,
         nombre: String,
         precio: Double,
+        imagen: String = "",
         cantidad: Int = 1,
         nota: String = ""
     ) {
@@ -223,7 +283,9 @@ class CrearPedidoActivity : AppCompatActivity() {
             nombreProducto = nombre,
             precioUnitario = precio,
             cantidad       = cantidad,
-            nota           = nota
+            nota           = nota,
+            imagenProducto = imagen,
+            hayInternet    = isOnline()
         )
     }
 
@@ -243,11 +305,20 @@ class CrearPedidoActivity : AppCompatActivity() {
     private fun confirmarPedido() {
         val cantidad = viewModel.detalles.value?.size ?: 0
         MaterialAlertDialogBuilder(this)
-            .setTitle("Enviar a cocina")
+            .setTitle("Crear pedido")
             .setMessage("¿Confirmar pedido con $cantidad producto(s)?")
-            .setPositiveButton("Enviar") { _, _ -> viewModel.confirmarPedido() }
+            .setPositiveButton("Enviar") { _, _ ->
+                viewModel.confirmarPedido(isOnline())
+            }
             .setNegativeButton("Revisar", null)
             .show()
+    }
+
+    private fun isOnline(): Boolean {
+        val cm = getSystemService(ConnectivityManager::class.java) ?: return false
+        val network = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(network) ?: return false
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
     private fun mostrarDialogoNota(detalle: DetallePedido) {
@@ -266,13 +337,25 @@ class CrearPedidoActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun mostrarSnackbar(mensaje: String, isError: Boolean = false) {
+    private fun mostrarSnackbar(
+        mensaje: String,
+        isError: Boolean = false,
+        duration: Int = Snackbar.LENGTH_LONG,
+        anchorView: View? = null
+    ) {
+        // Cerrar snackbar anterior
+        snackbarActual?.dismiss()
+        
         val snack = Snackbar.make(
             findViewById(android.R.id.content),
             mensaje,
-            Snackbar.LENGTH_LONG
+            duration
         )
+        if (anchorView != null) {
+            snack.setAnchorView(anchorView)
+        }
         if (isError) snack.setBackgroundTint(getColor(R.color.error_color))
         snack.show()
+        snackbarActual = snack
     }
 }

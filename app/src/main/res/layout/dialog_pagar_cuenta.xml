@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/dialogPagarCuenta"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_modal"
+    android:padding="16dp">
+
+    <!-- Botón cerrar -->
+    <ImageButton
+        android:id="@+id/btnCerrar"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:src="@drawable/ic_x"
+        android:background="@android:color/transparent"
+        android:layout_gravity="end"
+        app:tint="#A9A9A9" />
+
+    <!-- Título -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Pagar cuentas"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="12dp" />
+
+    <!-- Línea separadora -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:background="#FDE68A"
+        android:layout_marginBottom="12dp" />
+
+    <!-- LISTA DE CUENTAS -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvCuentas"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:overScrollMode="never" />
+
+</LinearLayout>

@@ -82,8 +82,9 @@ class MesasActivity : AppCompatActivity() {
                         .addOnSuccessListener { snapshot ->
                             // Pedido activo = cualquier estado distinto de BORRADOR o PAGADO
                             val estadosActivos = setOf(
-                                "COMANDADO", "EN_PREPARACION",
-                                "PENDIENTE_PREPARACION", "LISTO_PARA_ENTREGAR", "ENTREGADO"
+                                "COMANDADO", "COCINA",
+                                "PENDIENTE_PREPARACION", "PENDIENTE_CORRECCION_STOCK",
+                                "LISTO_PARA_ENTREGAR", "ATENDIDO"
                             )
                             val doc = snapshot.documents.firstOrNull {
                                 it.getString("estado") in estadosActivos
@@ -119,8 +120,9 @@ class MesasActivity : AppCompatActivity() {
      */
     private fun buscarPedidoPorStringLegacy(mesaId: String) {
         val estadosActivos = setOf(
-            "COMANDADO", "EN_PREPARACION",
-            "PENDIENTE_PREPARACION", "LISTO_PARA_ENTREGAR", "ENTREGADO"
+            "COMANDADO", "COCINA",
+            "PENDIENTE_PREPARACION", "PENDIENTE_CORRECCION_STOCK",
+            "LISTO_PARA_ENTREGAR", "ATENDIDO"
         )
         db.collection("pedidos")
             .get()

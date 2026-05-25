@@ -57,12 +57,15 @@ dependencies {
     implementation("androidx.recyclerview:recyclerview:1.3.2")
 
     //Room
-    // implementation("androidx.room:room-runtime:2.6.1")
-    // implementation("androidx.room:room-ktx:2.6.1")
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
 
-    // 🔥 Firebase (Corregido)
+    // WorkManager
+    implementation("androidx.work:work-runtime-ktx:2.11.2")
+
+    // Firebase
     implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
-    implementation("com.google.firebase:firebase-firestore") // Modificado: sin -ktx
+    implementation("com.google.firebase:firebase-firestore")
 
     // Tests
     testImplementation(libs.junit)

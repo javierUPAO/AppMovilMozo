@@ -5,6 +5,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.donabere.amm.model.Cuenta
 import com.donabere.amm.model.DetallePedido
 import com.donabere.amm.repository.PedidoRepository
 import kotlinx.coroutines.launch
@@ -16,9 +17,10 @@ class PedidoViewModel(
 
     // ─── Estado UI ────────────────────────────────────────────────────────────
     sealed class UiState {
-        object Idle          : UiState()
-        object Loading       : UiState()
-        object PedidoEnviado : UiState()
+        object Idle                              : UiState()
+        object Loading                           : UiState()
+        object PedidoEnviado                     : UiState()  // Enviado con éxito
+        object PedidoEnviadoPendienteSincronizar : UiState()  // Guardado, pendiente sincronización
         data class Success(val mensaje: String) : UiState()
         data class Error(val mensaje: String)   : UiState()
     }
@@ -29,27 +31,25 @@ class PedidoViewModel(
     // ─── Datos observables ────────────────────────────────────────────────────
     val detalles: LiveData<List<DetallePedido>> = repository.observarDetalles()
     val pedido:   LiveData<*>                   = repository.observarPedido()
+    val estadoSincronizacion: LiveData<PedidoRepository.EstadoSincronizacion> =
+        repository.observarEstadoSincronizacion()
+    val alertaSincronizacion: LiveData<String?> = repository.observarAlertasSincronizacion()
 
     private val _pedidoId = MutableLiveData<String?>(null)
     val pedidoId: LiveData<String?> = _pedidoId
 
-    private lateinit var mesasIds: List<String>
+    private var mesasIds: List<String> = emptyList()
+    private var envioEnCurso = false
+
 
     // ─── Inicializar ─────────────────────────────────────────────────────────
 
-    fun iniciarPedido(mesasIds: List<String>) {
+    fun iniciarMesa(mesasIds: List<String>)
+    {
         this.mesasIds = mesasIds
-        viewModelScope.launch {
-            _uiState.value = UiState.Loading
-            try {
-                val id = repository.crearPedidoBorrador(mesasIds, mozoId)
-                _pedidoId.value = id
-                _uiState.value = UiState.Idle
-            } catch (e: Exception) {
-                _uiState.value = UiState.Error("No se pudo iniciar el pedido: ${e.message}")
-            }
-        }
     }
+
+
 
     // ─── Carrito ──────────────────────────────────────────────────────────────
 
@@ -58,23 +58,21 @@ class PedidoViewModel(
         nombreProducto: String,
         precioUnitario: Double,
         cantidad: Int = 1,
-        nota: String = ""
+        nota: String = "",
+        imagenProducto: String = "",
+        hayInternet: Boolean
     ) {
         viewModelScope.launch {
             _uiState.value = UiState.Loading
             try {
-                // Si no hay borrador aún, crearlo ahora
-                val id = _pedidoId.value
-                    ?: repository.crearPedidoBorrador(mesasIds, mozoId)
-                        .also { _pedidoId.value = it }
-
-                repository.agregarDetalle(
-                    pedidoId       = id,
+                repository.agregarItemACuenta(
                     productoId     = productoId,
                     nombreProducto = nombreProducto,
                     precioUnitario = precioUnitario,
                     cantidad       = cantidad,
-                    nota           = nota
+                    nota           = nota,
+                    imagenUrl      = imagenProducto,
+                    validarStock   = hayInternet
                 ).fold(
                     onSuccess = { _uiState.value = UiState.Idle },
                     onFailure = { e ->
@@ -87,51 +85,143 @@ class PedidoViewModel(
         }
     }
 
-    fun actualizarCantidad(detalle: DetallePedido, nuevaCantidad: Int) {
+    fun actualizarCantidad(
+        detalle: DetallePedido,
+        nuevaCantidad: Int,
+        hayInternet: Boolean
+    ) {
+
         viewModelScope.launch {
-            // Si incrementa, validar stock
-            if (nuevaCantidad > detalle.cantidad) {
+
+            if (hayInternet && nuevaCantidad > detalle.cantidad) {
+
                 val stock = repository.obtenerStock(detalle.productoId)
+
                 if (stock != null && nuevaCantidad > stock) {
-                    _uiState.value = UiState.Error("Stock máximo disponible: $stock")
+
+                    _uiState.value =
+                        UiState.Error("Stock máximo disponible: $stock")
+
                     return@launch
                 }
             }
-            repository.actualizarCantidadDetalle(detalle, nuevaCantidad)
+
+            repository.actualizarCantidadDetalle(
+                detalle,
+                nuevaCantidad
+            )
         }
     }
 
-    fun actualizarNota(detalle: DetallePedido, nuevaNota: String) {
-        repository.actualizarNotaDetalle(detalle, nuevaNota)
-    }
+    fun actualizarNota(
+        detalle: DetallePedido,
+        nuevaNota: String
+    ) {
 
+        viewModelScope.launch {
+
+            repository.actualizarNotaDetalle(
+                detalle,
+                nuevaNota
+            )
+        }
+    }
     fun eliminarDetalle(detalle: DetallePedido) {
-        repository.eliminarDetalle(detalle)
+        viewModelScope.launch {
+
+            repository.eliminarDetalle(
+                detalle
+            )
+        }
     }
 
     fun restaurarDetalle(detalle: DetallePedido) {
-        repository.restaurarDetalle(detalle)
+        viewModelScope.launch {
+
+            repository.restaurarDetalle(
+                detalle
+            )
+        }
     }
 
     // ─── Confirmar ────────────────────────────────────────────────────────────
 
-    fun confirmarPedido() {
-        val id = _pedidoId.value ?: run {
-            _uiState.value = UiState.Error("No hay pedido activo")
-            return
-        }
+    fun confirmarPedido(hayInternet: Boolean) {
+        if (envioEnCurso) return
+        envioEnCurso = true
+        val mesas = mesasIds
+
         viewModelScope.launch {
             _uiState.value = UiState.Loading
-            repository.confirmarPedido(id).fold(
-                onSuccess = { _uiState.value = UiState.PedidoEnviado },
+
+            val resultado = if (hayInternet) {
+                repository.confirmarPedidoOnline(
+                    mozoId = mozoId,
+                    mesasIds = mesas
+                )
+            } else {
+                repository.confirmarPedidoOffline(
+                    mozoId = mozoId,
+                    mesasIds = mesas
+                )
+            }
+
+            resultado.fold(
+                onSuccess = {
+                    _uiState.value = if (hayInternet) {
+                        UiState.PedidoEnviado
+                    } else {
+                        UiState.PedidoEnviadoPendienteSincronizar
+                    }
+                },
                 onFailure = { e ->
                     _uiState.value = UiState.Error(e.message ?: "Error al confirmar")
+                }
+            )
+            envioEnCurso = false
+        }
+    }
+
+    fun obtenerCuentas(
+        pedidoId: String,
+        onResult: (List<Cuenta>) -> Unit
+    ) {
+        viewModelScope.launch {
+
+            repository.obtenerCuentas(pedidoId).fold(
+                onSuccess = { cuentas ->
+                    onResult(cuentas)
+                },
+                onFailure = { e ->
+                    _uiState.value = UiState.Error(
+                        e.message ?: "Error cargando cuentas"
+                    )
                 }
             )
         }
     }
 
+    fun pagarCuenta(
+        pedidoId: String,
+        cuentaId: String,
+        onSuccess: () -> Unit
+    ) {
+
+        viewModelScope.launch {
+
+            repository.pagarCuenta(pedidoId, cuentaId)
+                .onSuccess {
+
+                    onSuccess()
+                }
+        }
+    }
+
     fun resetUiState() { _uiState.value = UiState.Idle }
+
+    fun limpiarAlertaSincronizacion() {
+        repository.limpiarAlertaSincronizacion()
+    }
 
     // ─── Factory ──────────────────────────────────────────────────────────────
 
