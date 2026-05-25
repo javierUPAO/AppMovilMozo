@@ -98,16 +98,9 @@ class PedidosAdapter(
                 }
                 
                 // Mostrar botones de acción
-                binding.btnAgregarPlato.visibility = VISIBLE
                 binding.botonesAccion.visibility = VISIBLE
             } else {
-                binding.btnAgregarPlato.visibility = GONE
                 binding.botonesAccion.visibility = GONE
-            }
-
-            // Botón agregar plato
-            binding.btnAgregarPlato.setOnClickListener {
-                onAgregarPlato(pedido)
             }
             
             binding.btnCambiarEstadoPedido.text = when (pedido.estado) {

@@ -99,15 +99,6 @@
                 android:textSize="12sp"
                 android:visibility="gone" />
 
-            <!-- Botón agregar plato -->
-            <Button
-                android:id="@+id/btnAgregarPlato"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="+ Agregar plato"
-                android:visibility="gone" />
-
             <!-- Botón cambiar estado -->
             <LinearLayout
                 android:id="@+id/botonesAccion"
