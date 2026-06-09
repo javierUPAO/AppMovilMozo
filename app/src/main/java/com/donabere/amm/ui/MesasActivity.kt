@@ -1,13 +1,16 @@
 package com.donabere.amm.ui
 
+import android.content.ClipDescription
 import android.os.Bundle
 import android.util.Log
+import android.view.DragEvent
 import android.view.View
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.GridLayoutManager
 import com.donabere.amm.databinding.ActivityMesasBinding
+import com.donabere.amm.model.Mesa
 import com.donabere.amm.model.enums.EstadoMesa
 import com.donabere.amm.ui.adapter.ItemMesaAdapter
 import com.donabere.amm.viewmodel.MesasViewModel
@@ -26,14 +29,10 @@ class MesasActivity : AppCompatActivity() {
         binding = ActivityMesasBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Cargar mozoId desde SharedPreferences y pasarlo al ViewModel
-        // (el login lo guarda ahí al autenticarse)
         val prefs      = getSharedPreferences("app_prefs", MODE_PRIVATE)
         val usuarioId  = prefs.getString("usuarioId", "") ?: ""
         val mozoIdGuardado = prefs.getString("mozoId", "") ?: ""
 
-        // Si ya tenemos el mozoId guardado lo usamos directo,
-        // si no lo tenemos aún lo cargamos por usuarioId
         if (mozoIdGuardado.isNotEmpty()) {
             viewModel.mozoIdRecuperado = mozoIdGuardado
             Log.d("MesasActivity", "mozoId desde prefs: $mozoIdGuardado")
@@ -52,72 +51,132 @@ class MesasActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        adapter = ItemMesaAdapter { mesa ->
-            when (mesa.estado) {
-
-                EstadoMesa.LIBRE -> {
-                    // ── Bug 1 fix: leer mozoId desde el ViewModel, no desde prefs ──
-                    val mozoId = viewModel.mozoIdRecuperado
-                    if (mozoId.isEmpty()) {
-                        Toast.makeText(
-                            this,
-                            "Cargando datos del mozo, intenta de nuevo.",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        return@ItemMesaAdapter
+        adapter = ItemMesaAdapter(
+            onMesaClick = onMesaClick@{ mesa ->
+                when (mesa.estado) {
+                    EstadoMesa.LIBRE -> {
+                        val mozoId = viewModel.mozoIdRecuperado
+                        if (mozoId.isEmpty()) {
+                            Toast.makeText(
+                                this,
+                                "Cargando datos del mozo, intenta de nuevo.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            return@onMesaClick
+                        }
+                        val mesasParaPedido = if (mesa.grupoId != null) mesa.mesasAgrupadas else listOf(mesa.id)
+                        startActivity(
+                            CrearPedidoActivity.newIntent(this, mesasParaPedido, mozoId)
+                        )
                     }
-                    startActivity(
-                        CrearPedidoActivity.newIntent(this, listOf(mesa.id), mozoId)
-                    )
-                }
 
-                EstadoMesa.OCUPADA -> {
-                    Log.d("MesasActivity", "Buscando pedido para mesa: ${mesa.id}")
+                    EstadoMesa.OCUPADA -> {
+                        Log.d("MesasActivity", "Buscando pedido para mesa: ${mesa.id}")
 
-                    // ── Bug 2 fix: buscar por campo "mesasIds" que ahora es array ──
-                    // Si guardaste como String "1,2" usa la 2da query de respaldo
-                    db.collection("pedidos")
-                        .whereArrayContains("mesasIds", mesa.id)
-                        .get()
-                        .addOnSuccessListener { snapshot ->
-                            // Pedido activo = cualquier estado distinto de BORRADOR o PAGADO
-                            val estadosActivos = setOf(
-                                "COMANDADO", "COCINA",
-                                "PENDIENTE_PREPARACION", "PENDIENTE_CORRECCION_STOCK",
-                                "LISTO_PARA_ENTREGAR", "ATENDIDO"
-                            )
-                            val doc = snapshot.documents.firstOrNull {
-                                it.getString("estado") in estadosActivos
+                        db.collection("pedidos")
+                            .whereArrayContains("mesasIds", mesa.id)
+                            .get()
+                            .addOnSuccessListener { snapshot ->
+                                val estadosActivos = setOf(
+                                    "COMANDADO", "COCINA",
+                                    "PENDIENTE_PREPARACION", "PENDIENTE_CORRECCION_STOCK",
+                                    "LISTO_PARA_ENTREGAR", "ATENDIDO"
+                                )
+                                val doc = snapshot.documents.firstOrNull {
+                                    it.getString("estado") in estadosActivos
+                                }
+
+                                if (doc != null) {
+                                    Log.d("MesasActivity", "Pedido encontrado: ${doc.id}")
+                                    abrirDetalle(doc.id, mesa.id)
+                                } else {
+                                    buscarPedidoPorStringLegacy(mesa.id)
+                                }
                             }
-
-                            if (doc != null) {
-                                Log.d("MesasActivity", "Pedido encontrado: ${doc.id}")
-                                abrirDetalle(doc.id, mesa.id)
-                            } else {
-                                // Respaldo: buscar por campo String (migración de datos viejos)
+                            .addOnFailureListener { e ->
+                                Log.e("MesasActivity", "Error query: ${e.message}")
                                 buscarPedidoPorStringLegacy(mesa.id)
                             }
-                        }
-                        .addOnFailureListener { e ->
-                            Log.e("MesasActivity", "Error query: ${e.message}")
-                            // Intentar con la query legacy antes de mostrar error
-                            buscarPedidoPorStringLegacy(mesa.id)
-                        }
-                }
+                    }
 
-                else -> { /* otros estados futuros */ }
+                    else -> { /* otros estados futuros */ }
+                }
+            },
+            onMesaDropped = { source, target ->
+                handleMesaDropped(source, target)
             }
-        }
+        )
 
         binding.rvMesas.layoutManager = GridLayoutManager(this, 2)
         binding.rvMesas.adapter = adapter
+
+        // Listener en la lista para detectar cuando se suelta una mesa en el fondo (separar)
+        binding.rvMesas.setOnDragListener { _, event ->
+            when (event.action) {
+                DragEvent.ACTION_DRAG_STARTED -> {
+                    event.clipDescription.hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN)
+                }
+                DragEvent.ACTION_DROP -> {
+                    val sourceMesa = event.localState as? Mesa
+                    if (sourceMesa != null && sourceMesa.grupoId != null) {
+                        handleMesaSeparation(sourceMesa)
+                    }
+                    true
+                }
+                else -> true
+            }
+        }
     }
 
-    /**
-     * Respaldo para pedidos guardados con mesasIds como String "1,2"
-     * (datos creados con la versión anterior del PedidoRepository).
-     * Una vez migrados todos los datos se puede eliminar este método.
-     */
+    private fun handleMesaDropped(source: Mesa, target: Mesa) {
+        if (source.estado == EstadoMesa.LIBRE && target.estado == EstadoMesa.LIBRE) {
+            mostrarConfirmacionAgrupacion(source, target)
+        } else if (source.estado == EstadoMesa.LIBRE && target.estado == EstadoMesa.OCUPADA) {
+            mostrarConfirmacionUnion(source, target)
+        } else if (source.estado == EstadoMesa.OCUPADA && target.estado == EstadoMesa.LIBRE) {
+            mostrarConfirmacionUnion(target, source)
+        } else {
+            Toast.makeText(
+                this,
+                "No se pueden fusionar dos pedidos activos",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    private fun mostrarConfirmacionAgrupacion(mesa1: Mesa, mesa2: Mesa) {
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Agrupar Mesas")
+            .setMessage("¿Desea agrupar la Mesa ${mesa1.id.replace("m", "")} y la Mesa ${mesa2.id.replace("m", "")}?")
+            .setPositiveButton("Confirmar") { _, _ ->
+                viewModel.agruparMesasLibres(mesa1, mesa2)
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun mostrarConfirmacionUnion(mesaLibre: Mesa, mesaOcupada: Mesa) {
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Asociar Mesa")
+            .setMessage("¿Desea añadir la Mesa ${mesaLibre.id.replace("m", "")} al pedido existente de la Mesa ${mesaOcupada.id.replace("m", "")}?")
+            .setPositiveButton("Confirmar") { _, _ ->
+                viewModel.agregarMesaAPedido(mesaLibre, mesaOcupada)
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun handleMesaSeparation(mesa: Mesa) {
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Separar Mesa")
+            .setMessage("¿Desea separar la Mesa ${mesa.id.replace("m", "")} del grupo actual?")
+            .setPositiveButton("Separar") { _, _ ->
+                viewModel.separarMesaDeGrupo(mesa)
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
     private fun buscarPedidoPorStringLegacy(mesaId: String) {
         val estadosActivos = setOf(
             "COMANDADO", "COCINA",
@@ -175,8 +234,6 @@ class MesasActivity : AppCompatActivity() {
                 binding.tvError.visibility = View.GONE
             }
         }
-        // Observar cuando el mozoId se carga desde el repositorio
-        // y guardarlo en prefs para próximas sesiones
         viewModel.mozoIdLiveData.observe(this) { mozoId ->
             if (mozoId.isNotEmpty()) {
                 getSharedPreferences("app_prefs", MODE_PRIVATE)

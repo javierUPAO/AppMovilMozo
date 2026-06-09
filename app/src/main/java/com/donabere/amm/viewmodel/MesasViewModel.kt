@@ -62,6 +62,48 @@ class MesasViewModel(application: Application) : AndroidViewModel(application) {
 
     // ── Mesas ─────────────────────────────────────────────────────────────────
 
+    fun agruparMesasLibres(mesa1: Mesa, mesa2: Mesa) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            mesasRepository.agruparMesasLibres(mesa1, mesa2)
+                .onSuccess {
+                    fetchMesas()
+                }
+                .onFailure { e ->
+                    _error.value = e.message ?: "Error al agrupar mesas"
+                    _isLoading.value = false
+                }
+        }
+    }
+
+    fun agregarMesaAPedido(mesaLibre: Mesa, mesaOcupada: Mesa) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            mesasRepository.agregarMesaAPedido(mesaLibre, mesaOcupada)
+                .onSuccess {
+                    fetchMesas()
+                }
+                .onFailure { e ->
+                    _error.value = e.message ?: "Error al agregar mesa a pedido"
+                    _isLoading.value = false
+                }
+        }
+    }
+
+    fun separarMesaDeGrupo(mesa: Mesa) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            mesasRepository.separarMesaDeGrupo(mesa)
+                .onSuccess {
+                    fetchMesas()
+                }
+                .onFailure { e ->
+                    _error.value = e.message ?: "Error al separar mesa de grupo"
+                    _isLoading.value = false
+                }
+        }
+    }
+
     fun fetchMesas() {
         viewModelScope.launch {
             _isLoading.value = true
