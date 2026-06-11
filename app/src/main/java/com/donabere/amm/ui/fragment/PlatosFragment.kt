@@ -23,8 +23,12 @@ class PlatosFragment : Fragment() {
 
     companion object {
         fun newInstance(
-            onProductoSeleccionado: ((productoId: String, nombre: String, precio: Double, imagen: String) -> Unit)? = null
-        ) = PlatosFragment().also { it.onProductoSeleccionado = onProductoSeleccionado }
+            onProductoSeleccionado: ((productoId: String, nombre: String, precio: Double, imagen: String) -> Unit)? = null,
+            onNotaClick: ((productoId: String, nombre: String, precio: Double, imagen: String) -> Unit)? = null
+        ) = PlatosFragment().also {
+            it.onProductoSeleccionado = onProductoSeleccionado
+            it.onNotaClick = onNotaClick
+        }
     }
 
     private var _binding: FragmentPlatosBinding? = null
@@ -35,6 +39,7 @@ class PlatosFragment : Fragment() {
     private lateinit var buscadorAdapter: ArrayAdapter<String>
 
     var onProductoSeleccionado: ((productoId: String, nombre: String, precio: Double, imagen: String) -> Unit)? = null
+    var onNotaClick: ((productoId: String, nombre: String, precio: Double, imagen: String) -> Unit)? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -77,24 +82,30 @@ class PlatosFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        adapter = ProductoAdapter(emptyList()) { producto ->
-            val callback = onProductoSeleccionado
-            if (callback != null) {
-                // Modo carrito → llama directo a CrearPedidoActivity
-                callback(producto.id, producto.nombre, producto.precio, producto.imagen)
-            } else {
-                // Modo legacy → SeleccionProductoActivity escucha este result
-                // ID se pasa como String (ya no Int)
-                parentFragmentManager.setFragmentResult(
-                    SeleccionProductoActivity.RESULT_PLATO,
-                    bundleOf(
-                        SeleccionProductoActivity.EXTRA_PRODUCTO_ID     to producto.id,
-                        SeleccionProductoActivity.EXTRA_PRODUCTO_NOMBRE to producto.nombre,
-                        SeleccionProductoActivity.EXTRA_PRODUCTO_PRECIO to producto.precio
-                    )
-                )
+        val notaCallback = onNotaClick?.let { cb ->
+            { producto: com.donabere.amm.model.Producto ->
+                cb(producto.id, producto.nombre, producto.precio, producto.imagen)
             }
         }
+        adapter = ProductoAdapter(
+            emptyList(),
+            onProductoClick = { producto ->
+                val callback = onProductoSeleccionado
+                if (callback != null) {
+                    callback(producto.id, producto.nombre, producto.precio, producto.imagen)
+                } else {
+                    parentFragmentManager.setFragmentResult(
+                        SeleccionProductoActivity.RESULT_PLATO,
+                        androidx.core.os.bundleOf(
+                            SeleccionProductoActivity.EXTRA_PRODUCTO_ID     to producto.id,
+                            SeleccionProductoActivity.EXTRA_PRODUCTO_NOMBRE to producto.nombre,
+                            SeleccionProductoActivity.EXTRA_PRODUCTO_PRECIO to producto.precio
+                        )
+                    )
+                }
+            },
+            onNotaClick = notaCallback
+        )
         binding.rvMenu.layoutManager = GridLayoutManager(requireContext(), 2)
         binding.rvMenu.adapter = adapter
     }

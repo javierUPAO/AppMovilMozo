@@ -107,10 +107,15 @@ class CrearPedidoActivity : AppCompatActivity() {
         val tabLayout  = findViewById<com.google.android.material.tabs.TabLayout>(R.id.tab_categorias)
 
 
-        val adapter = PaginaMenuAdapter(this) { productoId, nombre, precio, imagen ->
-
-            agregarAlCarrito(productoId, nombre, precio, imagen)
-        }
+        val adapter = PaginaMenuAdapter(
+            activity = this,
+            onProductoSeleccionado = { productoId, nombre, precio, imagen ->
+                agregarAlCarrito(productoId, nombre, precio, imagen)
+            },
+            onNotaClick = { productoId, nombre, precio, imagen ->
+                mostrarDialogoNotaNuevo(productoId, nombre, precio, imagen)
+            }
+        )
         viewPager.adapter = adapter
 
         TabLayoutMediator(tabLayout, viewPager) { tab, pos ->
@@ -321,20 +326,63 @@ class CrearPedidoActivity : AppCompatActivity() {
         return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
+    /** Abre el diálogo de nota al tocar 💬 en la tarjeta (plato aún no en carrito). */
+    private fun mostrarDialogoNotaNuevo(
+        productoId: String,
+        nombre: String,
+        precio: Double,
+        imagen: String
+    ) {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_nota_producto, null)
+        val etNota = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.et_nota)
+        etNota.filters = arrayOf(android.text.InputFilter.LengthFilter(100))
+
+        val dialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("Agregar Nota")
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+
+        dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_cancelar_nota)
+            .setOnClickListener {
+                // Cancelar → agrega el plato sin nota
+                agregarAlCarrito(productoId, nombre, precio, imagen)
+                dialog.dismiss()
+            }
+
+        dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_guardar_nota)
+            .setOnClickListener {
+                val nota = etNota.text?.toString()?.trim() ?: ""
+                agregarAlCarrito(productoId, nombre, precio, imagen, nota = nota)
+                dialog.dismiss()
+            }
+
+        dialog.show()
+    }
+
+    /** Abre el diálogo de edición de nota para un plato ya en el carrito. */
     private fun mostrarDialogoNota(detalle: DetallePedido) {
-        val view   = layoutInflater.inflate(R.layout.dialog_nota_producto, null)
-        val etNota = view.findViewById<TextInputEditText>(R.id.et_nota)
+        val dialogView = layoutInflater.inflate(R.layout.dialog_nota_producto, null)
+        val etNota = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.et_nota)
         etNota.setText(detalle.nota)
         etNota.filters = arrayOf(android.text.InputFilter.LengthFilter(100))
 
-        MaterialAlertDialogBuilder(this)
-            .setTitle("Nota para ${detalle.nombreProducto}")
-            .setView(view)
-            .setPositiveButton("Guardar") { _, _ ->
+        val dialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("Editar Nota")
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+
+        dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_cancelar_nota)
+            .setOnClickListener { dialog.dismiss() }
+
+        dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_guardar_nota)
+            .setOnClickListener {
                 viewModel.actualizarNota(detalle, etNota.text?.toString()?.trim() ?: "")
+                dialog.dismiss()
             }
-            .setNegativeButton("Cancelar", null)
-            .show()
+
+        dialog.show()
     }
 
     private fun mostrarSnackbar(

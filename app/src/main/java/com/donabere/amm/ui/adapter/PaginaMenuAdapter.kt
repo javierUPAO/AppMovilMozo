@@ -9,29 +9,34 @@ import com.donabere.amm.ui.fragment.PlatosFragment
 class PaginaMenuAdapter : FragmentStateAdapter {
 
     private val onProductoSeleccionado: ((productoId: String, nombre: String, precio: Double, imagen: String) -> Unit)?
+    private val onNotaClick: ((productoId: String, nombre: String, precio: Double, imagen: String) -> Unit)?
 
     // Constructor para Activity con callback (CrearPedidoActivity)
     constructor(
         activity: FragmentActivity,
-        onProductoSeleccionado: ((productoId: String, nombre: String, precio: Double, imagen: String) -> Unit)? = null
+        onProductoSeleccionado: ((productoId: String, nombre: String, precio: Double, imagen: String) -> Unit)? = null,
+        onNotaClick: ((productoId: String, nombre: String, precio: Double, imagen: String) -> Unit)? = null
     ) : super(activity) {
         this.onProductoSeleccionado = onProductoSeleccionado
+        this.onNotaClick = onNotaClick
     }
 
     // Constructor para Fragment con callback (MenuFragment si se necesita)
     constructor(
         fragment: Fragment,
-        onProductoSeleccionado: ((productoId: String, nombre: String, precio: Double, imagen: String) -> Unit)? = null
+        onProductoSeleccionado: ((productoId: String, nombre: String, precio: Double, imagen: String) -> Unit)? = null,
+        onNotaClick: ((productoId: String, nombre: String, precio: Double, imagen: String) -> Unit)? = null
     ) : super(fragment) {
         this.onProductoSeleccionado = onProductoSeleccionado
+        this.onNotaClick = onNotaClick
     }
 
     override fun getItemCount(): Int = 2
 
     override fun createFragment(position: Int): Fragment {
         return when (position) {
-            0 -> PlatosFragment.newInstance(onProductoSeleccionado)
-            1 -> BebidasFragment.newInstance(onProductoSeleccionado)
+            0 -> PlatosFragment.newInstance(onProductoSeleccionado, onNotaClick)
+            1 -> BebidasFragment.newInstance(onProductoSeleccionado, onNotaClick)
             else -> throw IllegalArgumentException("Posición inválida: $position")
         }
     }
