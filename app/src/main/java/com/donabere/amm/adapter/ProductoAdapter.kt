@@ -15,7 +15,8 @@ import com.donabere.amm.utils.ImageUrlResolver
 
 class ProductoAdapter(
     private var productos: List<Producto>,
-    private val onProductoClick: (Producto) -> Unit
+    private val onProductoClick: (Producto) -> Unit,
+    private val onNotaClick: ((Producto) -> Unit)? = null
 ) : RecyclerView.Adapter<ProductoAdapter.ProductoViewHolder>() {
 
     private var listaCompleta: List<Producto> = productos
@@ -28,6 +29,7 @@ class ProductoAdapter(
         val tvProductStock: TextView = itemView.findViewById(R.id.tvDishStock)
         val flOutStockOverlay: FrameLayout = itemView.findViewById(R.id.flOutStockOverlay)
         val clProductContainer: ConstraintLayout = itemView.findViewById(R.id.clDishContainer)
+        val btnNotaPlato: android.widget.ImageButton = itemView.findViewById(R.id.btnNotaPlato)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ProductoViewHolder {
@@ -45,6 +47,14 @@ class ProductoAdapter(
         val imageUrl = ImageUrlResolver.resolve(holder.itemView.context, producto.imagen)
         holder.ivProductImage.load(imageUrl) {
             crossfade(true)
+        }
+
+        // Ícono de nota: visible solo en modo pedido (cuando hay callback)
+        if (onNotaClick != null) {
+            holder.btnNotaPlato.visibility = View.VISIBLE
+            holder.btnNotaPlato.setOnClickListener { onNotaClick.invoke(producto) }
+        } else {
+            holder.btnNotaPlato.visibility = View.GONE
         }
 
         if (producto.stock <= 0) {

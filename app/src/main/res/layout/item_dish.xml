@@ -84,7 +84,7 @@
         <!-- Precio en grande y oscuro -->
         <TextView
             android:id="@+id/tvDishPrice"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
             android:textSize="20sp"
@@ -92,7 +92,22 @@
             android:textColor="@android:color/black"
             app:layout_constraintTop_toBottomOf="@+id/tvDishDescription"
             app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/btnNotaPlato"
             tools:text="S/ 18.20" />
+
+        <!-- Ícono de nota HU 3.4: solo visible en modo pedido -->
+        <ImageButton
+            android:id="@+id/btnNotaPlato"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="@android:color/transparent"
+            android:src="@drawable/ic_chat_bubble"
+            android:contentDescription="Agregar nota al plato"
+            android:visibility="gone"
+            app:tint="@color/orange_primary"
+            app:layout_constraintBottom_toBottomOf="@+id/tvDishPrice"
+            app:layout_constraintTop_toTopOf="@+id/tvDishPrice"
+            app:layout_constraintEnd_toEndOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
