@@ -1,11 +1,15 @@
 package com.donabere.amm.ui.fragment
 
+import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.InputMethodManager
+import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.core.os.bundleOf
+import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.GridLayoutManager
@@ -28,6 +32,7 @@ class BebidasFragment : Fragment() {
 
     private val viewModel: ProductoViewModel by viewModels()
     private lateinit var adapter: ProductoAdapter
+    private lateinit var buscadorAdapter: ArrayAdapter<String>
 
     var onProductoSeleccionado: ((productoId: String, nombre: String, precio: Double, imagen: String) -> Unit)? = null
 
@@ -41,8 +46,34 @@ class BebidasFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupRecyclerView()
+        setupBuscador()
         observeViewModel()
         viewModel.cargarProductosPorTipo(TipoProducto.BEBIDA)
+    }
+
+    private fun setupBuscador() {
+        buscadorAdapter = ArrayAdapter(
+            requireContext(),
+            android.R.layout.simple_dropdown_item_1line,
+            mutableListOf()
+        )
+        binding.actBuscadorBebidas.setAdapter(buscadorAdapter)
+
+        // filtra la grilla en tiempo real conforme se escribe
+        binding.actBuscadorBebidas.addTextChangedListener { text ->
+            adapter.filter(text?.toString() ?: "")
+        }
+
+        // se toca una sugerencia de la lista
+        binding.actBuscadorBebidas.setOnItemClickListener { _, _, position, _ ->
+            val nombreBebida = buscadorAdapter.getItem(position) ?: return@setOnItemClickListener
+
+            val imm = requireContext()
+                .getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(binding.actBuscadorBebidas.windowToken, 0)
+
+            binding.actBuscadorBebidas.clearFocus()
+        }
     }
 
     private fun setupRecyclerView() {
@@ -69,7 +100,14 @@ class BebidasFragment : Fragment() {
     }
 
     private fun observeViewModel() {
-        viewModel.productos.observe(viewLifecycleOwner) { adapter.updateData(it) }
+        viewModel.productos.observe(viewLifecycleOwner) { productos ->
+            // Actualiza el RecyclerView
+            adapter.updateData(productos)
+            // Actualiza las sugerencias del buscador con los nombres reales de la BD
+            buscadorAdapter.clear()
+            buscadorAdapter.addAll(productos.map { it.nombre })
+            buscadorAdapter.notifyDataSetChanged()
+        }
         viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
             binding.pbBebidasLoading.visibility = if (loading) View.VISIBLE else View.GONE
         }

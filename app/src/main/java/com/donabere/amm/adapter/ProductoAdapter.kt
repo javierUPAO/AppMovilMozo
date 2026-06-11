@@ -18,6 +18,8 @@ class ProductoAdapter(
     private val onProductoClick: (Producto) -> Unit
 ) : RecyclerView.Adapter<ProductoAdapter.ProductoViewHolder>() {
 
+    private var listaCompleta: List<Producto> = productos
+
     class ProductoViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val ivProductImage: ImageView = itemView.findViewById(R.id.ivDishImage)
         val tvProductName: TextView = itemView.findViewById(R.id.tvDishTitle)
@@ -61,7 +63,20 @@ class ProductoAdapter(
     override fun getItemCount(): Int = productos.size
 
     fun updateData(newList: List<Producto>) {
+        listaCompleta = newList
         productos = newList
+        notifyDataSetChanged()
+    }
+
+    /** Filtra la grilla en tiempo real según el texto del buscador. */
+    fun filter(query: String) {
+        productos = if (query.isBlank()) {
+            listaCompleta
+        } else {
+            listaCompleta.filter {
+                it.nombre.contains(query, ignoreCase = true)
+            }
+        }
         notifyDataSetChanged()
     }
 }
