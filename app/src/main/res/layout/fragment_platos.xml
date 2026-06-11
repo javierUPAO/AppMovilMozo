@@ -5,11 +5,58 @@
     android:layout_height="match_parent"
     android:padding="8dp">
 
+    <!--
+        HU 3.1 — Barra de búsqueda con autocompletado
+        TextInputLayout estilo OutlinedBox con bordes completamente
+        redondeados (shapeAppearanceOverlay) y borde naranja (#F59E0B).
+        El AutoCompleteTextView activará sugerencias desde 1 carácter.
+    -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/tilBuscadorPlatos"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginEnd="4dp"
+        android:layout_marginBottom="8dp"
+        app:boxCornerRadiusBottomEnd="24dp"
+        app:boxCornerRadiusBottomStart="24dp"
+        app:boxCornerRadiusTopEnd="24dp"
+        app:boxCornerRadiusTopStart="24dp"
+        app:boxStrokeColor="#F59E0B"
+        app:boxStrokeWidth="1.5dp"
+        app:boxStrokeWidthFocused="2dp"
+        app:hintEnabled="false"
+        app:startIconDrawable="@drawable/ic_search"
+        app:startIconTint="#9CA3AF"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <AutoCompleteTextView
+            android:id="@+id/actBuscadorPlatos"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@android:color/transparent"
+            android:completionThreshold="1"
+            android:hint="Buscar..."
+            android:imeOptions="actionSearch"
+            android:inputType="text"
+            android:maxLines="1"
+            android:paddingTop="14dp"
+            android:paddingBottom="14dp"
+            android:textColor="@android:color/black"
+            android:textColorHint="#9CA3AF"
+            android:textSize="14sp" />
+
+    </com.google.android.material.textfield.TextInputLayout>
+
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvMenu" 
+        android:id="@+id/rvMenu"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tilBuscadorPlatos"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
@@ -19,7 +66,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tilBuscadorPlatos"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
