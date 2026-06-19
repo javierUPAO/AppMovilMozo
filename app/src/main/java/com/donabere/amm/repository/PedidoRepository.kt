@@ -1126,7 +1126,42 @@ class PedidoRepository {
             }
         }
 
-        private suspend fun validarStockPedido(pedidoId: String): String? {
+        suspend fun transferirPedido(pedidoId: String, mesaOrigenId: String, mesaDestinoId: String): Result<Unit> {
+        return try {
+            val batch = db.batch()
+            
+            val pedidoRef = pedidosRef.document(pedidoId)
+            val pedidoSnapshot = pedidoRef.get().await()
+            if (!pedidoSnapshot.exists()) return Result.failure(Exception("Pedido no encontrado"))
+            
+            val mesasIdsCurrent = (pedidoSnapshot.get("mesasIds") as? List<*>)?.mapNotNull { it as? String } ?: emptyList()
+            val nuevasMesasIds = mesasIdsCurrent.filter { it != mesaOrigenId }.toMutableList()
+            if (!nuevasMesasIds.contains(mesaDestinoId)) {
+                nuevasMesasIds.add(mesaDestinoId)
+            }
+            batch.update(pedidoRef, "mesasIds", nuevasMesasIds)
+            
+            val mesaOrigenRef = mesasRef.document(mesaOrigenId)
+            batch.update(mesaOrigenRef, mapOf(
+                "estado" to "LIBRE",
+                "pedidoId" to com.google.firebase.firestore.FieldValue.delete()
+            ))
+            
+            val mesaDestinoRef = mesasRef.document(mesaDestinoId)
+            batch.update(mesaDestinoRef, mapOf(
+                "estado" to "OCUPADA",
+                "pedidoId" to pedidoId
+            ))
+            
+            batch.commit().await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error transfiriendo pedido: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    private suspend fun validarStockPedido(pedidoId: String): String? {
             return try {
                 val cuentasSnapshot = pedidosRef
                     .document(pedidoId)
