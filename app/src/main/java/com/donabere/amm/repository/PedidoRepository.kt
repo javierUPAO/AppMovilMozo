@@ -905,13 +905,15 @@ class PedidoRepository {
                 if (nuevoEstado == EstadoPedido.PAGADO) {
                     val batch = db.batch()
 
-                    // Marcar todas las mesas como LIBRE y quitarles el pedido
+                    // Marcar todas las mesas como LIBRE, quitarles el pedido y limpiar agrupación
                     pedido.mesasIds.forEach { mesaId ->
                         batch.update(
                             mesasRef.document(mesaId),
                             mapOf(
                                 "estado" to "LIBRE",
-                                "pedidoId" to null
+                                "pedidoId" to null,
+                                "grupoId" to null,
+                                "mesasAgrupadas" to emptyList<String>()
                             )
                         )
                     }
@@ -998,7 +1000,9 @@ class PedidoRepository {
                             .update(
                                 mapOf(
                                     "estado" to "LIBRE",
-                                    "pedidoId" to null
+                                    "pedidoId" to null,
+                                    "grupoId" to null,
+                                    "mesasAgrupadas" to emptyList<String>()
                                 )
                             )
                             .await()
@@ -1059,13 +1063,15 @@ class PedidoRepository {
             return try {
                 val batch = db.batch()
 
-                // Marcar todas las mesas como LIBRE y quitarles el pedido
+                // Marcar todas las mesas como LIBRE, quitarles el pedido y limpiar agrupación
                 pedido.mesasIds.forEach { mesaId ->
                     batch.update(
                         mesasRef.document(mesaId),
                         mapOf(
                             "estado" to "LIBRE",
-                            "pedidoId" to null
+                            "pedidoId" to null,
+                            "grupoId" to null,
+                            "mesasAgrupadas" to emptyList<String>()
                         )
                     )
                 }
