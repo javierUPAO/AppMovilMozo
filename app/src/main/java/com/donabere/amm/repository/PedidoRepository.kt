@@ -905,9 +905,15 @@ class PedidoRepository {
                 if (nuevoEstado == EstadoPedido.PAGADO) {
                     val batch = db.batch()
 
-                    // Marcar todas las mesas como LIBRE
+                    // Marcar todas las mesas como LIBRE y quitarles el pedido
                     pedido.mesasIds.forEach { mesaId ->
-                        batch.update(mesasRef.document(mesaId), "estado", "LIBRE")
+                        batch.update(
+                            mesasRef.document(mesaId),
+                            mapOf(
+                                "estado" to "LIBRE",
+                                "pedidoId" to null
+                            )
+                        )
                     }
 
                     // Actualizar estado del pedido a PAGADO
@@ -1053,9 +1059,15 @@ class PedidoRepository {
             return try {
                 val batch = db.batch()
 
-                // Marcar todas las mesas como LIBRE
+                // Marcar todas las mesas como LIBRE y quitarles el pedido
                 pedido.mesasIds.forEach { mesaId ->
-                    batch.update(mesasRef.document(mesaId), "estado", "LIBRE")
+                    batch.update(
+                        mesasRef.document(mesaId),
+                        mapOf(
+                            "estado" to "LIBRE",
+                            "pedidoId" to null
+                        )
+                    )
                 }
 
                 // Opcionalmente marcar el pedido como PAGADO o cerrar
