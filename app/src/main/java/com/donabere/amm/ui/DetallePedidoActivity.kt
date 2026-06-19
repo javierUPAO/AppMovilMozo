@@ -241,14 +241,23 @@ class DetallePedidoActivity : AppCompatActivity() {
                     .update("estado", "PAGADO")
                     .await()
 
-                // 2. Liberar mesa en Firestore (Hacemos UPDATE, no DELETE)
-                mesasRef.document(mesaId.trim())
-                    .update(
+                // 2. Obtener mesas asociadas al pedido para liberarlas todas y desagruparlas
+                val pedidoSnap = pedidosRef.document(pedidoId).get().await()
+                val mesasIds = (pedidoSnap.get("mesasIds") as? List<*>)?.mapNotNull { it as? String } ?: listOf(mesaId)
+
+                val batch = db.batch()
+                mesasIds.forEach { mId ->
+                    batch.update(
+                        mesasRef.document(mId.trim()),
                         mapOf(
-                            "estado" to "LIBRE"
+                            "estado" to "LIBRE",
+                            "pedidoId" to null,
+                            "grupoId" to null,
+                            "mesasAgrupadas" to emptyList<String>()
                         )
                     )
-                    .await()
+                }
+                batch.commit().await()
 
                 withContext(Dispatchers.Main) {
                     progressBar.visibility = View.GONE
