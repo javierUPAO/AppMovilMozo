@@ -107,28 +107,42 @@
     <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
+            android:orientation="vertical"
             android:padding="16dp">
 
         <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_dividir"
-                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                android:layout_width="0dp"
-                android:layout_height="48dp"
-                android:layout_weight="1"
-                android:layout_marginEnd="8dp"
-                android:text="Dividir"
-                app:strokeColor="@color/primary_color"
+                android:id="@+id/btn_transferir"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Transferir a otra mesa"
                 android:textColor="@color/primary_color" />
 
-        <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_cobrar"
-                android:layout_width="0dp"
-                android:layout_height="48dp"
-                android:layout_weight="1"
-                android:text="Listo"
-                app:backgroundTint="@color/primary_color" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp">
 
+            <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_dividir"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    android:text="Dividir"
+                    app:strokeColor="@color/primary_color"
+                    android:textColor="@color/primary_color" />
+
+            <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_cobrar"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:text="Listo"
+                    app:backgroundTint="@color/primary_color" />
+        </LinearLayout>
     </LinearLayout>
 
 </LinearLayout>

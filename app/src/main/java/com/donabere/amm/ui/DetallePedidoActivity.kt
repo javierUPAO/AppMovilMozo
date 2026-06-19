@@ -49,6 +49,7 @@ class DetallePedidoActivity : AppCompatActivity() {
     private lateinit var rvDetalles:        RecyclerView
     private lateinit var btnCobrar:         MaterialButton
     private lateinit var btnDividir:        MaterialButton
+    private lateinit var btnTransferir:     MaterialButton
     private lateinit var progressBar:       ProgressBar
     private lateinit var llCuentasDivididas: View
     private lateinit var chipGroupCuentas:  ChipGroup
@@ -78,6 +79,7 @@ class DetallePedidoActivity : AppCompatActivity() {
 
         btnDividir.setOnClickListener { abrirDividirCuenta() }
         btnCobrar.setOnClickListener  { confirmarCobro() }
+        btnTransferir.setOnClickListener { abrirTransferirMesa() }
     }
 
     // ── Binding ───────────────────────────────────────────────────────────────
@@ -89,6 +91,7 @@ class DetallePedidoActivity : AppCompatActivity() {
         rvDetalles         = findViewById(R.id.rv_detalles)
         btnCobrar          = findViewById(R.id.btn_cobrar)
         btnDividir         = findViewById(R.id.btn_dividir)
+        btnTransferir      = findViewById(R.id.btn_transferir)
         progressBar        = findViewById(R.id.progress_bar)
         llCuentasDivididas = findViewById(R.id.ll_cuentas_divididas)
         chipGroupCuentas   = findViewById(R.id.chip_group_cuentas)
@@ -263,6 +266,97 @@ class DetallePedidoActivity : AppCompatActivity() {
                     btnCobrar.isEnabled    = true
                     btnDividir.isEnabled   = true
                     mostrarError("Error al procesar cobro: ${e.message}")
+                }
+            }
+        }
+    }
+
+    // ── Transferencia ─────────────────────────────────────────────────────────
+
+    private fun abrirTransferirMesa() {
+        progressBar.visibility = View.VISIBLE
+        btnTransferir.isEnabled = false
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // Obtener mesas libres
+                val mesasSnap = mesasRef.whereEqualTo("estado", "LIBRE").get().await()
+                val mesasLibres = mesasSnap.documents.mapNotNull { it.id }
+
+                withContext(Dispatchers.Main) {
+                    progressBar.visibility = View.GONE
+                    btnTransferir.isEnabled = true
+
+                    if (mesasLibres.isEmpty()) {
+                        mostrarError("No hay mesas libres disponibles.")
+                        return@withContext
+                    }
+
+                    // Seleccionar mesa destino
+                    val items = mesasLibres.toTypedArray()
+                    MaterialAlertDialogBuilder(this@DetallePedidoActivity)
+                        .setTitle("Transferir a Mesa")
+                        .setItems(items) { _, which ->
+                            val mesaDestinoId = items[which]
+                            confirmarTransferencia(mesaDestinoId)
+                        }
+                        .setNegativeButton("Cancelar", null)
+                        .show()
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    progressBar.visibility = View.GONE
+                    btnTransferir.isEnabled = true
+                    mostrarError("Error al cargar mesas libres: ${e.message}")
+                }
+            }
+        }
+    }
+
+    private fun confirmarTransferencia(mesaDestinoId: String) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Confirmar Transferencia")
+            .setMessage("¿Transferir el pedido de la Mesa $mesaId a la Mesa $mesaDestinoId?")
+            .setPositiveButton("Confirmar") { _, _ -> procesarTransferencia(mesaDestinoId) }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun procesarTransferencia(mesaDestinoId: String) {
+        progressBar.visibility = View.VISIBLE
+        btnTransferir.isEnabled = false
+        btnCobrar.isEnabled    = false
+        btnDividir.isEnabled   = false
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val repository = com.donabere.amm.repository.PedidoRepository()
+                val result = repository.transferirPedido(pedidoId, mesaId, mesaDestinoId)
+
+                withContext(Dispatchers.Main) {
+                    progressBar.visibility = View.GONE
+                    if (result.isSuccess) {
+                        Snackbar.make(
+                            findViewById(android.R.id.content),
+                            "✅ Pedido transferido a la Mesa $mesaDestinoId",
+                            Snackbar.LENGTH_SHORT
+                        ).show()
+                        rvDetalles.postDelayed({ finish() }, 1000)
+                    } else {
+                        btnTransferir.isEnabled = true
+                        btnCobrar.isEnabled    = true
+                        btnDividir.isEnabled   = true
+                        val ex = result.exceptionOrNull()
+                        mostrarError("Error al transferir pedido: ${ex?.message}")
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    progressBar.visibility = View.GONE
+                    btnTransferir.isEnabled = true
+                    btnCobrar.isEnabled    = true
+                    btnDividir.isEnabled   = true
+                    mostrarError("Error inesperado: ${e.message}")
                 }
             }
         }
