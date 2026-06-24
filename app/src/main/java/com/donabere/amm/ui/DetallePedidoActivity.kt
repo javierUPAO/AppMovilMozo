@@ -147,9 +147,9 @@ class DetallePedidoActivity : AppCompatActivity() {
 
                 withContext(Dispatchers.Main) {
                     progressBar.visibility = View.GONE
-                    detallesActuales = detalles
+                    detallesActuales = todosLosDetalles
 
-                    if (detalles.isEmpty()) {
+                    if (todosLosDetalles.isEmpty()) {
                         tvVacio.visibility    = View.VISIBLE
                         rvDetalles.visibility = View.GONE
                         btnDividir.isEnabled  = false
@@ -158,7 +158,7 @@ class DetallePedidoActivity : AppCompatActivity() {
                         tvVacio.visibility    = View.GONE
                         rvDetalles.visibility = View.VISIBLE
                         rvDetalles.adapter    = DetallePedidoReadOnlyAdapter(
-                            detalles.map { d ->
+                            todosLosDetalles.map { d ->
                                 DetallePedidoReadOnlyAdapter.Item(
                                     nombre   = d.nombreProducto,
                                     cantidad = d.cantidad,
