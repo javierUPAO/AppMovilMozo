@@ -104,34 +104,40 @@ class DetallePedidoActivity : AppCompatActivity() {
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // 1. Detalles del pedido
-                val detallesSnap = pedidosRef
-                    .document(pedidoId)
-                    .collection("detalles")
-                    .get()
-                    .await()
-
-                val detalles = detallesSnap.documents.map { doc ->
-                    DetallePedido(
-                        id             = doc.id,
-                        productoId     = doc.getString("productoId")     ?: "",
-                        nombreProducto = doc.getString("nombreProducto") ?: "",
-                        precioUnitario = doc.getDouble("precioUnitario") ?: 0.0,
-                        cantidad       = doc.getLong("cantidad")?.toInt() ?: 0,
-                        nota           = doc.getString("nota")           ?: "",
-                        anulado        = doc.getBoolean("anulado")       ?: false
-                    )
-                }.filter { !it.anulado }
-
-                val total = detalles.sumOf { it.subtotal }
-
-                // 2. Cuentas divididas (si existen)
+                // 1. Detalles del pedido (ahora están dentro de cuentas/{cuentaId}/detalles)
                 val cuentasSnap = pedidosRef
                     .document(pedidoId)
                     .collection("cuentas")
                     .get()
                     .await()
 
+                val todosLosDetalles = mutableListOf<DetallePedido>()
+
+                for (cuentaDoc in cuentasSnap.documents) {
+                    val detallesSnap = cuentaDoc.reference
+                        .collection("detalles")
+                        .get()
+                        .await()
+
+                    val detallesCuenta = detallesSnap.documents.map { doc ->
+                        DetallePedido(
+                            id             = doc.id,
+                            productoId     = doc.getString("productoId")     ?: "",
+                            nombreProducto = doc.getString("nombreProducto") ?: "",
+                            precioUnitario = doc.getDouble("precioUnitario") ?: 0.0,
+                            cantidad       = doc.getLong("cantidad")?.toInt() ?: 0,
+                            nota           = doc.getString("nota")           ?: "",
+                            anulado        = doc.getBoolean("anulado")       ?: false,
+                            cuentaId       = cuentaDoc.id
+                        )
+                    }.filter { !it.anulado }
+
+                    todosLosDetalles.addAll(detallesCuenta)
+                }
+
+                val total = todosLosDetalles.sumOf { it.subtotal }
+
+                // 2. Cuentas divididas (si existen)
                 val cuentas = cuentasSnap.documents.map { doc ->
                     Pair(
                         doc.getString("nombre")      ?: "Cuenta",
@@ -141,9 +147,9 @@ class DetallePedidoActivity : AppCompatActivity() {
 
                 withContext(Dispatchers.Main) {
                     progressBar.visibility = View.GONE
-                    detallesActuales = detalles
+                    detallesActuales = todosLosDetalles
 
-                    if (detalles.isEmpty()) {
+                    if (todosLosDetalles.isEmpty()) {
                         tvVacio.visibility    = View.VISIBLE
                         rvDetalles.visibility = View.GONE
                         btnDividir.isEnabled  = false
@@ -152,7 +158,7 @@ class DetallePedidoActivity : AppCompatActivity() {
                         tvVacio.visibility    = View.GONE
                         rvDetalles.visibility = View.VISIBLE
                         rvDetalles.adapter    = DetallePedidoReadOnlyAdapter(
-                            detalles.map { d ->
+                            todosLosDetalles.map { d ->
                                 DetallePedidoReadOnlyAdapter.Item(
                                     nombre   = d.nombreProducto,
                                     cantidad = d.cantidad,
