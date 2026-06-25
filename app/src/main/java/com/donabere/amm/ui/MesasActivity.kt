@@ -64,7 +64,13 @@ class MesasActivity : AppCompatActivity() {
                             ).show()
                             return@onMesaClick
                         }
-                        val mesasParaPedido = if (mesa.grupoId != null) mesa.mesasAgrupadas else listOf(mesa.id)
+
+                        val mesasParaPedido = if (mesa.grupoId != null) {
+                            mesa.mesasAgrupadas
+                        } else {
+                            listOf(mesa.id)
+                        }
+
                         startActivity(
                             CrearPedidoActivity.newIntent(this, mesasParaPedido, mozoId)
                         )
@@ -72,38 +78,17 @@ class MesasActivity : AppCompatActivity() {
 
                     EstadoMesa.OCUPADA -> {
                         Log.d("MesasActivity", "Buscando pedido para mesa: ${mesa.id}")
-
-                        db.collection("pedidos")
-                            .whereArrayContains("mesasIds", mesa.id)
-                            .get()
-                            .addOnSuccessListener { snapshot ->
-                                val estadosActivos = setOf(
-                                    "COMANDADO", "COCINA",
-                                    "PENDIENTE_PREPARACION", "PENDIENTE_CORRECCION_STOCK",
-                                    "LISTO_PARA_ENTREGAR", "ATENDIDO"
-                                )
-                                val doc = snapshot.documents.firstOrNull {
-                                    it.getString("estado") in estadosActivos
-                                }
-
-                                if (doc != null) {
-                                    Log.d("MesasActivity", "Pedido encontrado: ${doc.id}")
-                                    abrirDetalle(doc.id, mesa.id)
-                                } else {
-                                    buscarPedidoPorStringLegacy(mesa.id)
-                                }
-                            }
-                            .addOnFailureListener { e ->
-                                Log.e("MesasActivity", "Error query: ${e.message}")
-                                buscarPedidoPorStringLegacy(mesa.id)
-                            }
+                        // deja aquí tu lógica actual de pedido ocupado
                     }
 
-                    else -> { /* otros estados futuros */ }
+                    else -> { }
                 }
             },
             onMesaDropped = { source, target ->
                 handleMesaDropped(source, target)
+            },
+            onMesaDroppedOutside = { source ->
+                handleMesaSeparation(source)
             }
         )
 

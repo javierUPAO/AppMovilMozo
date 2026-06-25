@@ -74,6 +74,9 @@ class MesasFragment : Fragment() {
         },
         onMesaDropped = { source, target ->
             handleMesaDropped(source, target)
+        },
+        onMesaDroppedOutside = { source ->
+            handleMesaSeparation(source)
         }
     )
 

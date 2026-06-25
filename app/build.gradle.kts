@@ -69,8 +69,15 @@ dependencies {
 
     // Tests
     testImplementation(libs.junit)
+
+    // Tests instrumentados Android
+    androidTestImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.rules)
     androidTestImplementation(libs.androidx.espresso.core)
+
 
     // Retrofit & Gson
     implementation("com.squareup.retrofit2:retrofit:2.9.0")

@@ -17,14 +17,15 @@ import com.donabere.amm.R
 
 class ItemMesaAdapter(
     private val onMesaClick: (Mesa) -> Unit,
-    private val onMesaDropped: (source: Mesa, target: Mesa) -> Unit
+    private val onMesaDropped: (source: Mesa, target: Mesa) -> Unit,
+    private val onMesaDroppedOutside: (source: Mesa) -> Unit = {}
 ) : RecyclerView.Adapter<ItemMesaAdapter.MesaViewHolder>() {
 
     private var mesasList = listOf<Mesa>()
 
     fun submitList(mesas: List<Mesa>) {
         this.mesasList = mesas
-        notifyItemRangeChanged(0, mesas.size)
+        notifyDataSetChanged()
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MesaViewHolder {
@@ -45,6 +46,9 @@ class ItemMesaAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(mesa: Mesa) {
+            binding.root.tag = "mesa_${mesa.id}"
+            binding.root.contentDescription = "mesa_${mesa.id}"
+
             // Identificador visual de agrupación (ej. "Mesa 1+2" o "Mesa 1")
             val displayId = if (mesa.grupoId != null && mesa.mesasAgrupadas.isNotEmpty()) {
                 val sortedNumbers = mesa.mesasAgrupadas
@@ -109,6 +113,17 @@ class ItemMesaAdapter(
                         true
                     }
                     DragEvent.ACTION_DRAG_ENDED -> {
+                        val sourceMesa = event.localState as? Mesa
+
+                        if (
+                            !event.result &&
+                            sourceMesa != null &&
+                            sourceMesa.grupoId != null &&
+                            sourceMesa.id == mesa.id
+                        ) {
+                            onMesaDroppedOutside(sourceMesa)
+                        }
+
                         if (mesa.grupoId != null) {
                             card.setStrokeColor(ColorStateList.valueOf(Color.parseColor("#4A90E2")))
                             card.strokeWidth = 6
@@ -116,6 +131,7 @@ class ItemMesaAdapter(
                             card.setStrokeColor(ColorStateList.valueOf(Color.TRANSPARENT))
                             card.strokeWidth = 0
                         }
+
                         true
                     }
                     else -> false
