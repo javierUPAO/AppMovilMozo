@@ -4,14 +4,22 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageButton
 import android.widget.ProgressBar
 import android.widget.TextView
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.donabere.amm.R
 import com.donabere.amm.model.DetallePedido
+import com.donabere.amm.model.enums.EstadoPedido
+import com.donabere.amm.repository.PedidoRepository
 import com.donabere.amm.ui.adapter.DetallePedidoReadOnlyAdapter
+import com.donabere.amm.ui.fragment.DialogAnulacionFragment
+import com.donabere.amm.viewmodel.PedidoViewModel
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
@@ -39,28 +47,56 @@ class DetallePedidoActivity : AppCompatActivity() {
             }
     }
 
+    // ── Firebase ──────────────────────────────────────────────────────────────
     private val db         = FirebaseFirestore.getInstance()
     private val pedidosRef = db.collection("pedidos")
     private val mesasRef   = db.collection("mesas")
 
-    private lateinit var tvMesa:            TextView
-    private lateinit var tvTotal:           TextView
-    private lateinit var tvVacio:           TextView
-    private lateinit var rvDetalles:        RecyclerView
-    private lateinit var btnCobrar:         MaterialButton
-    private lateinit var btnDividir:        MaterialButton
-    private lateinit var btnTransferir:     MaterialButton
-    private lateinit var progressBar:       ProgressBar
+    // ── ViewModel ─────────────────────────────────────────────────────────────
+    private lateinit var viewModel: PedidoViewModel
+
+    // ── Vistas ────────────────────────────────────────────────────────────────
+    private lateinit var tvMesa:             TextView
+    private lateinit var tvTotal:            TextView
+    private lateinit var tvVacio:            TextView
+    private lateinit var chipEstado:         Chip
+    private lateinit var rvDetalles:         RecyclerView
+    private lateinit var btnCobrar:          MaterialButton
+    private lateinit var btnDividir:         MaterialButton
+    private lateinit var btnTransferir:      MaterialButton
+    private lateinit var btnAgregarPlato:    MaterialButton
+    private lateinit var progressBar:        ProgressBar
     private lateinit var llCuentasDivididas: View
-    private lateinit var chipGroupCuentas:  ChipGroup
+    private lateinit var chipGroupCuentas:   ChipGroup
 
-    private lateinit var pedidoId: String
-    private lateinit var mesaId:   String
-
-    /** Detalles cargados de Firestore, necesarios para pasarlos al dialog */
-    private var detallesActuales: List<DetallePedido> = emptyList()
+    // ── Estado ────────────────────────────────────────────────────────────────
+    private lateinit var pedidoId:       String
+    private lateinit var mesaId:         String
+    private var cuentaIdPrincipal:       String = ""   // ID de la cuenta activa del pedido
+    private var detallesActuales:        List<DetallePedido> = emptyList()
+    private var estadoPedido:            EstadoPedido = EstadoPedido.PENDIENTE_PREPARACION
+    private val modoEdicion get() =
+        estadoPedido == EstadoPedido.COMANDADO ||
+                estadoPedido == EstadoPedido.PENDIENTE_PREPARACION
 
     private val moneyFormat = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("es-PE"))
+
+    // ── ActivityResult para SeleccionProductoActivity ─────────────────────────
+    private val seleccionProductoLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode != RESULT_OK) return@registerForActivityResult
+        val (productoId, nombre, precio) = SeleccionProductoActivity
+            .extraerResultado(result.data) ?: return@registerForActivityResult
+
+        viewModel.agregarProductoAPedidoActivo(
+            pedidoId       = pedidoId,
+            cuentaId       = cuentaIdPrincipal,
+            productoId     = productoId,
+            nombreProducto = nombre,
+            precioUnitario = precio
+        )
+    }
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -71,15 +107,58 @@ class DetallePedidoActivity : AppCompatActivity() {
         pedidoId = intent.getStringExtra(EXTRA_PEDIDO_ID) ?: run { finish(); return }
         mesaId   = intent.getStringExtra(EXTRA_MESA_ID)   ?: run { finish(); return }
 
+        iniciarViewModel()
         bindViews()
+        configurarRecyclerView()
+        observarViewModel()
+        registrarListenerAnulacion()
+
         tvMesa.text = "Mesa $mesaId"
-        rvDetalles.layoutManager = LinearLayoutManager(this)
 
         cargarDetalles()
 
-        btnDividir.setOnClickListener { abrirDividirCuenta() }
-        btnCobrar.setOnClickListener  { confirmarCobro() }
+        btnDividir.setOnClickListener    { abrirDividirCuenta() }
+        btnCobrar.setOnClickListener     { confirmarCobro() }
         btnTransferir.setOnClickListener { abrirTransferirMesa() }
+        btnAgregarPlato.setOnClickListener {
+            seleccionProductoLauncher.launch(
+                SeleccionProductoActivity.newIntent(this, mesaId)
+            )
+        }
+    }
+
+    // ── ViewModel ─────────────────────────────────────────────────────────────
+
+    private fun iniciarViewModel() {
+        val repository = PedidoRepository()
+        viewModel = ViewModelProvider(
+            this,
+            PedidoViewModel.Factory(repository)
+        )[PedidoViewModel::class.java]
+    }
+
+    private fun observarViewModel() {
+        viewModel.uiState.observe(this) { state ->
+            when (state) {
+                is PedidoViewModel.UiState.Loading -> {
+                    progressBar.visibility = View.VISIBLE
+                }
+                is PedidoViewModel.UiState.Success -> {
+                    progressBar.visibility = View.GONE
+                    mostrarSnackbar(state.mensaje)
+                    cargarDetalles()          // Recargar lista tras cada cambio
+                    viewModel.resetUiState()
+                }
+                is PedidoViewModel.UiState.Error -> {
+                    progressBar.visibility = View.GONE
+                    mostrarSnackbar("❌ ${state.mensaje}")
+                    viewModel.resetUiState()
+                }
+                else -> {
+                    progressBar.visibility = View.GONE
+                }
+            }
+        }
     }
 
     // ── Binding ───────────────────────────────────────────────────────────────
@@ -88,13 +167,19 @@ class DetallePedidoActivity : AppCompatActivity() {
         tvMesa             = findViewById(R.id.tv_mesa_label)
         tvTotal            = findViewById(R.id.tv_total)
         tvVacio            = findViewById(R.id.tv_vacio)
+        chipEstado         = findViewById(R.id.chip_estado)
         rvDetalles         = findViewById(R.id.rv_detalles)
         btnCobrar          = findViewById(R.id.btn_cobrar)
         btnDividir         = findViewById(R.id.btn_dividir)
         btnTransferir      = findViewById(R.id.btn_transferir)
+        btnAgregarPlato    = findViewById(R.id.btn_agregar_plato)
         progressBar        = findViewById(R.id.progress_bar)
         llCuentasDivididas = findViewById(R.id.ll_cuentas_divididas)
         chipGroupCuentas   = findViewById(R.id.chip_group_cuentas)
+    }
+
+    private fun configurarRecyclerView() {
+        rvDetalles.layoutManager = LinearLayoutManager(this)
     }
 
     // ── Cargar detalles ───────────────────────────────────────────────────────
@@ -104,12 +189,25 @@ class DetallePedidoActivity : AppCompatActivity() {
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // 1. Detalles del pedido (ahora están dentro de cuentas/{cuentaId}/detalles)
+                // 1. Leer estado del pedido
+                val pedidoSnap = pedidosRef.document(pedidoId).get().await()
+                val estadoStr  = pedidoSnap.getString("estado") ?: ""
+                val estado     = try {
+                    EstadoPedido.valueOf(estadoStr)
+                } catch (e: Exception) {
+                    EstadoPedido.PENDIENTE_PREPARACION
+                }
+
+                // 2. Leer cuentas y detalles
                 val cuentasSnap = pedidosRef
                     .document(pedidoId)
                     .collection("cuentas")
                     .get()
                     .await()
+
+                // Guardar el ID de la primera cuenta (cuenta principal)
+                val primeraCuenta = cuentasSnap.documents.firstOrNull()
+                val cuentaId      = primeraCuenta?.id ?: ""
 
                 val todosLosDetalles = mutableListOf<DetallePedido>()
 
@@ -119,17 +217,19 @@ class DetallePedidoActivity : AppCompatActivity() {
                         .get()
                         .await()
 
-                    val detallesCuenta = detallesSnap.documents.map { doc ->
-                        DetallePedido(
-                            id             = doc.id,
-                            productoId     = doc.getString("productoId")     ?: "",
-                            nombreProducto = doc.getString("nombreProducto") ?: "",
-                            precioUnitario = doc.getDouble("precioUnitario") ?: 0.0,
-                            cantidad       = doc.getLong("cantidad")?.toInt() ?: 0,
-                            nota           = doc.getString("nota")           ?: "",
-                            anulado        = doc.getBoolean("anulado")       ?: false,
-                            cuentaId       = cuentaDoc.id
-                        )
+                    val detallesCuenta = detallesSnap.documents.mapNotNull { doc ->
+                        try {
+                            DetallePedido(
+                                id             = doc.id,
+                                productoId     = doc.getString("productoId")     ?: "",
+                                nombreProducto = doc.getString("nombreProducto") ?: "",
+                                precioUnitario = doc.getDouble("precioUnitario") ?: 0.0,
+                                cantidad       = doc.getLong("cantidad")?.toInt() ?: 0,
+                                nota           = doc.getString("nota")           ?: "",
+                                anulado        = doc.getBoolean("anulado")       ?: false,
+                                cuentaId       = cuentaDoc.id
+                            )
+                        } catch (e: Exception) { null }
                     }.filter { !it.anulado }
 
                     todosLosDetalles.addAll(detallesCuenta)
@@ -137,7 +237,6 @@ class DetallePedidoActivity : AppCompatActivity() {
 
                 val total = todosLosDetalles.sumOf { it.subtotal }
 
-                // 2. Cuentas divididas (si existen)
                 val cuentas = cuentasSnap.documents.map { doc ->
                     Pair(
                         doc.getString("nombre")      ?: "Cuenta",
@@ -147,29 +246,13 @@ class DetallePedidoActivity : AppCompatActivity() {
 
                 withContext(Dispatchers.Main) {
                     progressBar.visibility = View.GONE
-                    detallesActuales = todosLosDetalles
+                    estadoPedido           = estado
+                    cuentaIdPrincipal      = cuentaId
+                    detallesActuales       = todosLosDetalles
 
-                    if (todosLosDetalles.isEmpty()) {
-                        tvVacio.visibility    = View.VISIBLE
-                        rvDetalles.visibility = View.GONE
-                        btnDividir.isEnabled  = false
-                        btnCobrar.isEnabled   = false
-                    } else {
-                        tvVacio.visibility    = View.GONE
-                        rvDetalles.visibility = View.VISIBLE
-                        rvDetalles.adapter    = DetallePedidoReadOnlyAdapter(
-                            todosLosDetalles.map { d ->
-                                DetallePedidoReadOnlyAdapter.Item(
-                                    nombre   = d.nombreProducto,
-                                    cantidad = d.cantidad,
-                                    subtotal = d.subtotal
-                                )
-                            }
-                        )
-                        tvTotal.text = "Total: ${moneyFormat.format(total)}"
-                    }
+                    actualizarChipEstado(estado)
+                    actualizarModoUI(todosLosDetalles, total)
 
-                    // Mostrar cuentas divididas si ya se guardaron
                     if (cuentas.isNotEmpty()) {
                         mostrarCuentasDivididas(cuentas)
                     }
@@ -178,8 +261,157 @@ class DetallePedidoActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     progressBar.visibility = View.GONE
-                    mostrarError("Error al cargar pedido: ${e.message}")
+                    mostrarSnackbar("Error al cargar pedido: ${e.message}")
                 }
+            }
+        }
+    }
+
+    // ── UI según estado ───────────────────────────────────────────────────────
+
+    private fun actualizarChipEstado(estado: EstadoPedido) {
+        chipEstado.text = when (estado) {
+            EstadoPedido.COMANDADO              -> "Tomado"
+            EstadoPedido.PENDIENTE_PREPARACION  -> "Pendiente de preparación"
+            EstadoPedido.COCINA                 -> "En cocina"
+            EstadoPedido.LISTO_PARA_ENTREGAR    -> "Listo para entregar"
+            EstadoPedido.ATENDIDO               -> "Atendido"
+            EstadoPedido.PAGADO                 -> "Pagado"
+            else                                -> estado.name
+        }
+    }
+
+    private fun actualizarModoUI(
+        detalles: List<DetallePedido>,
+        total: Double
+    ) {
+        if (detalles.isEmpty()) {
+            tvVacio.visibility    = View.VISIBLE
+            rvDetalles.visibility = View.GONE
+            btnDividir.isEnabled  = false
+            btnCobrar.isEnabled   = false
+        } else {
+            tvVacio.visibility    = View.GONE
+            rvDetalles.visibility = View.VISIBLE
+            tvTotal.text          = "Total: ${moneyFormat.format(total)}"
+
+            if (modoEdicion) {
+                // Adapter editable con botón anular por ítem
+                rvDetalles.adapter = DetalleEditableAdapter(
+                    detalles   = detalles,
+                    onIncrement = { detalle ->
+                        viewModel.modificarCantidadEnPedidoActivo(
+                            pedidoId      = pedidoId,
+                            cuentaId      = detalle.cuentaId ?: cuentaIdPrincipal,
+                            detalle       = detalle,
+                            nuevaCantidad = detalle.cantidad + 1
+                        )
+                    },
+                    onDecrement = { detalle ->
+                        if (detalle.cantidad > 1) {
+                            viewModel.modificarCantidadEnPedidoActivo(
+                                pedidoId      = pedidoId,
+                                cuentaId      = detalle.cuentaId ?: cuentaIdPrincipal,
+                                detalle       = detalle,
+                                nuevaCantidad = detalle.cantidad - 1
+                            )
+                        }
+                        // cantidad == 1 → no hacer nada; para eliminar se usa btn_anular
+                    },
+                    onAnular = { detalle ->
+                        DialogAnulacionFragment
+                            .newInstance(detalle)
+                            .show(supportFragmentManager, DialogAnulacionFragment.TAG)
+                    }
+                )
+                btnAgregarPlato.visibility = View.VISIBLE
+            } else {
+                // Adapter solo lectura (comportamiento anterior)
+                rvDetalles.adapter = DetallePedidoReadOnlyAdapter(
+                    detalles.map { d ->
+                        DetallePedidoReadOnlyAdapter.Item(
+                            nombre   = d.nombreProducto,
+                            cantidad = d.cantidad,
+                            subtotal = d.subtotal
+                        )
+                    }
+                )
+                btnAgregarPlato.visibility = View.GONE
+            }
+        }
+    }
+
+    // ── Listener resultado anulación ──────────────────────────────────────────
+
+    private fun registrarListenerAnulacion() {
+        supportFragmentManager.setFragmentResultListener(
+            DialogAnulacionFragment.REQUEST_KEY,
+            this
+        ) { _, bundle ->
+            val motivo    = bundle.getString(DialogAnulacionFragment.RESULT_MOTIVO)    ?: return@setFragmentResultListener
+            val detalleId = bundle.getString(DialogAnulacionFragment.RESULT_DETALLE_ID) ?: return@setFragmentResultListener
+            val cuentaId  = bundle.getString(DialogAnulacionFragment.RESULT_CUENTA_ID)  ?: return@setFragmentResultListener
+
+            val detalle = detallesActuales.find { it.id == detalleId } ?: return@setFragmentResultListener
+
+            viewModel.anularProductoEnPedidoActivo(
+                pedidoId = pedidoId,
+                cuentaId = cuentaId,
+                detalle  = detalle,
+                motivo   = motivo
+            )
+        }
+    }
+
+    // ── Adapter interno editable ──────────────────────────────────────────────
+
+    private inner class DetalleEditableAdapter(
+        private val detalles: List<DetallePedido>,
+        private val onIncrement: (DetallePedido) -> Unit,
+        private val onDecrement: (DetallePedido) -> Unit,
+        private val onAnular:    (DetallePedido) -> Unit
+    ) : RecyclerView.Adapter<DetalleEditableAdapter.VH>() {
+
+        private val moneyFmt = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("es-PE"))
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
+            val v = layoutInflater.inflate(
+                R.layout.item_detalle_pedido_editable, parent, false
+            )
+            return VH(v)
+        }
+
+        override fun onBindViewHolder(holder: VH, position: Int) =
+            holder.bind(detalles[position])
+
+        override fun getItemCount() = detalles.size
+
+        inner class VH(v: View) : RecyclerView.ViewHolder(v) {
+            private val tvNombre   = v.findViewById<TextView>(R.id.tv_nombre_producto)
+            private val tvNota     = v.findViewById<TextView>(R.id.tv_nota)
+            private val tvPrecio   = v.findViewById<TextView>(R.id.tv_precio_unitario)
+            private val tvCantidad = v.findViewById<TextView>(R.id.tv_cantidad)
+            private val tvSubtotal = v.findViewById<TextView>(R.id.tv_subtotal)
+            private val btnMas     = v.findViewById<ImageButton>(R.id.btn_mas)
+            private val btnMenos   = v.findViewById<ImageButton>(R.id.btn_menos)
+            private val btnAnular  = v.findViewById<ImageButton>(R.id.btn_anular)
+
+            fun bind(d: DetallePedido) {
+                tvNombre.text   = d.nombreProducto
+                tvCantidad.text = d.cantidad.toString()
+                tvPrecio.text   = "${moneyFmt.format(d.precioUnitario)}/u"
+                tvSubtotal.text = moneyFmt.format(d.subtotal)
+
+                if (d.nota.isBlank()) {
+                    tvNota.visibility = View.GONE
+                } else {
+                    tvNota.visibility = View.VISIBLE
+                    tvNota.text       = "📝 ${d.nota}"
+                }
+
+                btnMas.setOnClickListener    { onIncrement(d) }
+                btnMenos.setOnClickListener  { onDecrement(d) }
+                btnAnular.setOnClickListener { onAnular(d) }
             }
         }
     }
@@ -188,33 +420,26 @@ class DetallePedidoActivity : AppCompatActivity() {
 
     private fun abrirDividirCuenta() {
         if (detallesActuales.isEmpty()) return
-
         DividirCuentaDialog.show(
             fm        = supportFragmentManager,
             pedidoId  = pedidoId,
             detalles  = detallesActuales,
             onGuardado = {
-                // Recargar para mostrar las cuentas nuevas
                 chipGroupCuentas.removeAllViews()
                 cargarDetalles()
-                Snackbar.make(
-                    findViewById(android.R.id.content),
-                    "División guardada correctamente",
-                    Snackbar.LENGTH_SHORT
-                ).show()
+                mostrarSnackbar("División guardada correctamente")
             }
         )
     }
 
-    // ── Mostrar chips de cuentas ──────────────────────────────────────────────
+    // ── Chips de cuentas divididas ────────────────────────────────────────────
 
     private fun mostrarCuentasDivididas(cuentas: List<Pair<String, Double>>) {
         llCuentasDivididas.visibility = View.VISIBLE
         chipGroupCuentas.removeAllViews()
-
         cuentas.forEach { (nombre, total) ->
             val chip = Chip(this).apply {
-                text = "$nombre\n${moneyFormat.format(total)}"
+                text        = "$nombre\n${moneyFormat.format(total)}"
                 isClickable = false
                 isCheckable = false
                 setChipBackgroundColorResource(R.color.chip_unselected_bg)
@@ -242,23 +467,20 @@ class DetallePedidoActivity : AppCompatActivity() {
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // 1. Marcar pedido como PAGADO
-                pedidosRef.document(pedidoId)
-                    .update("estado", "PAGADO")
-                    .await()
+                pedidosRef.document(pedidoId).update("estado", "PAGADO").await()
 
-                // 2. Obtener mesas asociadas al pedido para liberarlas todas y desagruparlas
                 val pedidoSnap = pedidosRef.document(pedidoId).get().await()
-                val mesasIds = (pedidoSnap.get("mesasIds") as? List<*>)?.mapNotNull { it as? String } ?: listOf(mesaId)
+                val mesasIds   = (pedidoSnap.get("mesasIds") as? List<*>)
+                    ?.mapNotNull { it as? String } ?: listOf(mesaId)
 
                 val batch = db.batch()
                 mesasIds.forEach { mId ->
                     batch.update(
                         mesasRef.document(mId.trim()),
                         mapOf(
-                            "estado" to "LIBRE",
-                            "pedidoId" to null,
-                            "grupoId" to null,
+                            "estado"        to "LIBRE",
+                            "pedidoId"      to null,
+                            "grupoId"       to null,
                             "mesasAgrupadas" to emptyList<String>()
                         )
                     )
@@ -267,20 +489,15 @@ class DetallePedidoActivity : AppCompatActivity() {
 
                 withContext(Dispatchers.Main) {
                     progressBar.visibility = View.GONE
-                    Snackbar.make(
-                        findViewById(android.R.id.content),
-                        "✅ Mesa $mesaId liberada",
-                        Snackbar.LENGTH_SHORT
-                    ).show()
+                    mostrarSnackbar("✅ Mesa $mesaId liberada")
                     rvDetalles.postDelayed({ finish() }, 1000)
                 }
-
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     progressBar.visibility = View.GONE
                     btnCobrar.isEnabled    = true
                     btnDividir.isEnabled   = true
-                    mostrarError("Error al procesar cobro: ${e.message}")
+                    mostrarSnackbar("Error al procesar cobro: ${e.message}")
                 }
             }
         }
@@ -289,40 +506,37 @@ class DetallePedidoActivity : AppCompatActivity() {
     // ── Transferencia ─────────────────────────────────────────────────────────
 
     private fun abrirTransferirMesa() {
-        progressBar.visibility = View.VISIBLE
+        progressBar.visibility  = View.VISIBLE
         btnTransferir.isEnabled = false
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // Obtener mesas libres
-                val mesasSnap = mesasRef.whereEqualTo("estado", "LIBRE").get().await()
+                val mesasSnap  = mesasRef.whereEqualTo("estado", "LIBRE").get().await()
                 val mesasLibres = mesasSnap.documents.mapNotNull { it.id }
 
                 withContext(Dispatchers.Main) {
-                    progressBar.visibility = View.GONE
+                    progressBar.visibility  = View.GONE
                     btnTransferir.isEnabled = true
 
                     if (mesasLibres.isEmpty()) {
-                        mostrarError("No hay mesas libres disponibles.")
+                        mostrarSnackbar("No hay mesas libres disponibles.")
                         return@withContext
                     }
 
-                    // Seleccionar mesa destino
                     val items = mesasLibres.toTypedArray()
                     MaterialAlertDialogBuilder(this@DetallePedidoActivity)
                         .setTitle("Transferir a Mesa")
                         .setItems(items) { _, which ->
-                            val mesaDestinoId = items[which]
-                            confirmarTransferencia(mesaDestinoId)
+                            confirmarTransferencia(items[which])
                         }
                         .setNegativeButton("Cancelar", null)
                         .show()
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    progressBar.visibility = View.GONE
+                    progressBar.visibility  = View.GONE
                     btnTransferir.isEnabled = true
-                    mostrarError("Error al cargar mesas libres: ${e.message}")
+                    mostrarSnackbar("Error al cargar mesas libres: ${e.message}")
                 }
             }
         }
@@ -338,40 +552,35 @@ class DetallePedidoActivity : AppCompatActivity() {
     }
 
     private fun procesarTransferencia(mesaDestinoId: String) {
-        progressBar.visibility = View.VISIBLE
+        progressBar.visibility  = View.VISIBLE
         btnTransferir.isEnabled = false
-        btnCobrar.isEnabled    = false
-        btnDividir.isEnabled   = false
+        btnCobrar.isEnabled     = false
+        btnDividir.isEnabled    = false
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val repository = com.donabere.amm.repository.PedidoRepository()
-                val result = repository.transferirPedido(pedidoId, mesaId, mesaDestinoId)
+                val repository = PedidoRepository()
+                val result     = repository.transferirPedido(pedidoId, mesaId, mesaDestinoId)
 
                 withContext(Dispatchers.Main) {
                     progressBar.visibility = View.GONE
                     if (result.isSuccess) {
-                        Snackbar.make(
-                            findViewById(android.R.id.content),
-                            "✅ Pedido transferido a la Mesa $mesaDestinoId",
-                            Snackbar.LENGTH_SHORT
-                        ).show()
+                        mostrarSnackbar("✅ Pedido transferido a la Mesa $mesaDestinoId")
                         rvDetalles.postDelayed({ finish() }, 1000)
                     } else {
                         btnTransferir.isEnabled = true
-                        btnCobrar.isEnabled    = true
-                        btnDividir.isEnabled   = true
-                        val ex = result.exceptionOrNull()
-                        mostrarError("Error al transferir pedido: ${ex?.message}")
+                        btnCobrar.isEnabled     = true
+                        btnDividir.isEnabled    = true
+                        mostrarSnackbar("Error al transferir: ${result.exceptionOrNull()?.message}")
                     }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    progressBar.visibility = View.GONE
+                    progressBar.visibility  = View.GONE
                     btnTransferir.isEnabled = true
-                    btnCobrar.isEnabled    = true
-                    btnDividir.isEnabled   = true
-                    mostrarError("Error inesperado: ${e.message}")
+                    btnCobrar.isEnabled     = true
+                    btnDividir.isEnabled    = true
+                    mostrarSnackbar("Error inesperado: ${e.message}")
                 }
             }
         }
@@ -379,11 +588,7 @@ class DetallePedidoActivity : AppCompatActivity() {
 
     // ── Util ──────────────────────────────────────────────────────────────────
 
-    private fun mostrarError(msg: String) {
-        Snackbar.make(
-            findViewById(android.R.id.content),
-            msg,
-            Snackbar.LENGTH_LONG
-        ).show()
+    private fun mostrarSnackbar(msg: String) {
+        Snackbar.make(findViewById(android.R.id.content), msg, Snackbar.LENGTH_LONG).show()
     }
 }

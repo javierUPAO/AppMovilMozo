@@ -223,11 +223,81 @@ class PedidoViewModel(
         repository.limpiarAlertaSincronizacion()
     }
 
+    // ─── HU 3.3 · Edición de pedido activo ───────────────────────────────────────
+
+    fun modificarCantidadEnPedidoActivo(
+        pedidoId: String,
+        cuentaId: String,
+        detalle: DetallePedido,
+        nuevaCantidad: Int
+    ) {
+        viewModelScope.launch {
+            _uiState.value = UiState.Loading
+            repository.modificarCantidadDetalleFirestore(
+                pedidoId     = pedidoId,
+                cuentaId     = cuentaId,
+                detalle      = detalle,
+                nuevaCantidad = nuevaCantidad
+            ).fold(
+                onSuccess = { _uiState.value = UiState.Success("Cantidad actualizada") },
+                onFailure = { e -> _uiState.value = UiState.Error(e.message ?: "Error al modificar") }
+            )
+        }
+    }
+
+    fun agregarProductoAPedidoActivo(
+        pedidoId: String,
+        cuentaId: String,
+        productoId: String,
+        nombreProducto: String,
+        precioUnitario: Double,
+        cantidad: Int = 1,
+        nota: String = "",
+        imagenUrl: String = ""
+    ) {
+        viewModelScope.launch {
+            _uiState.value = UiState.Loading
+            repository.agregarDetalleAPedidoActivo(
+                pedidoId       = pedidoId,
+                cuentaId       = cuentaId,
+                productoId     = productoId,
+                nombreProducto = nombreProducto,
+                precioUnitario = precioUnitario,
+                cantidad       = cantidad,
+                nota           = nota,
+                imagenUrl      = imagenUrl
+            ).fold(
+                onSuccess = { _uiState.value = UiState.Success("Producto agregado") },
+                onFailure = { e -> _uiState.value = UiState.Error(e.message ?: "Error al agregar") }
+            )
+        }
+    }
+
+    fun anularProductoEnPedidoActivo(
+        pedidoId: String,
+        cuentaId: String,
+        detalle: DetallePedido,
+        motivo: String
+    ) {
+        viewModelScope.launch {
+            _uiState.value = UiState.Loading
+            repository.anularDetalleFirestore(
+                pedidoId = pedidoId,
+                cuentaId = cuentaId,
+                detalle  = detalle,
+                motivo   = motivo
+            ).fold(
+                onSuccess = { _uiState.value = UiState.Success("Plato anulado") },
+                onFailure = { e -> _uiState.value = UiState.Error(e.message ?: "Error al anular") }
+            )
+        }
+    }
+
     // ─── Factory ──────────────────────────────────────────────────────────────
 
     class Factory(
         private val repository: PedidoRepository,
-        private val mozoId: String
+        private val mozoId: String = ""          // vacío cuando solo se edita
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
