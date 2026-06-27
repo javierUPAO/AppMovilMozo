@@ -1056,6 +1056,7 @@ class PedidoRepository {
                 Result.failure(e)
             }
         }
+
         /**
          * Libera las mesas asociadas al pedido (marca como LIBRE)
          */
@@ -1135,30 +1136,30 @@ class PedidoRepository {
         suspend fun transferirPedido(pedidoId: String, mesaOrigenId: String, mesaDestinoId: String): Result<Unit> {
         return try {
             val batch = db.batch()
-            
+
             val pedidoRef = pedidosRef.document(pedidoId)
             val pedidoSnapshot = pedidoRef.get().await()
             if (!pedidoSnapshot.exists()) return Result.failure(Exception("Pedido no encontrado"))
-            
+
             val mesasIdsCurrent = (pedidoSnapshot.get("mesasIds") as? List<*>)?.mapNotNull { it as? String } ?: emptyList()
             val nuevasMesasIds = mesasIdsCurrent.filter { it != mesaOrigenId }.toMutableList()
             if (!nuevasMesasIds.contains(mesaDestinoId)) {
                 nuevasMesasIds.add(mesaDestinoId)
             }
             batch.update(pedidoRef, "mesasIds", nuevasMesasIds)
-            
+
             val mesaOrigenRef = mesasRef.document(mesaOrigenId)
             batch.update(mesaOrigenRef, mapOf(
                 "estado" to "LIBRE",
                 "pedidoId" to com.google.firebase.firestore.FieldValue.delete()
             ))
-            
+
             val mesaDestinoRef = mesasRef.document(mesaDestinoId)
             batch.update(mesaDestinoRef, mapOf(
                 "estado" to "OCUPADA",
                 "pedidoId" to pedidoId
             ))
-            
+
             batch.commit().await()
             Result.success(Unit)
         } catch (e: Exception) {
@@ -1216,7 +1217,7 @@ class PedidoRepository {
                     pedidosRef.document(pedidoId)
                         .update("estado", EstadoPedido.PENDIENTE_CORRECCION_STOCK)
                         .await()
-                    "Stock insuficiente: ${faltantes.joinToString(", ")}" 
+                    "Stock insuficiente: ${faltantes.joinToString(", ")}"
                 }
 
             } catch (e: Exception) {
@@ -1238,6 +1239,239 @@ class PedidoRepository {
             }
         }
 
+    // ─── HU 3.3 · Edición de pedido activo ───────────────────────────────────────
+
+    /**
+     * Modifica la cantidad de un detalle ya confirmado en Firestore.
+     * - Si aumenta: valida stock disponible y descuenta la diferencia.
+     * - Si disminuye: restaura la diferencia al stock.
+     * Recalcula el totalPagar del pedido.
+     */
+    suspend fun modificarCantidadDetalleFirestore(
+        pedidoId: String,
+        cuentaId: String,
+        detalle: DetallePedido,
+        nuevaCantidad: Int
+    ): Result<Unit> {
+        return try {
+            val detalleRef = pedidosRef
+                .document(pedidoId)
+                .collection("cuentas")
+                .document(cuentaId)
+                .collection("detalles")
+                .document(detalle.id)
+
+            val diferencia = nuevaCantidad - detalle.cantidad
+
+            // Validar stock solo si aumentamos cantidad
+            if (diferencia > 0) {
+                val stockActual = obtenerStock(detalle.productoId)
+                if (stockActual != null && diferencia > stockActual) {
+                    return Result.failure(
+                        IllegalStateException(
+                            "Stock insuficiente. Disponible: $stockActual"
+                        )
+                    )
+                }
+            }
+
+            // Actualizar cantidad en Firestore
+            detalleRef.update("cantidad", nuevaCantidad).await()
+
+            // Ajustar stock
+            if (diferencia > 0) {
+                descontarStock(detalle.productoId, diferencia)
+            } else if (diferencia < 0) {
+                restaurarStock(detalle.productoId, -diferencia)
+            }
+
+            // Recalcular totalPagar del pedido
+            recalcularTotalPedido(pedidoId)
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error modificando cantidad: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Agrega un nuevo detalle a la cuenta principal de un pedido activo.
+     * - Valida stock antes de agregar.
+     * - Si el mismo producto+nota ya existe (no anulado), suma la cantidad.
+     * - Descuenta stock y recalcula totalPagar.
+     */
+    suspend fun agregarDetalleAPedidoActivo(
+        pedidoId: String,
+        cuentaId: String,
+        productoId: String,
+        nombreProducto: String,
+        precioUnitario: Double,
+        cantidad: Int,
+        nota: String = "",
+        imagenUrl: String = ""
+    ): Result<Unit> {
+        return try {
+            val cuentaRef = pedidosRef
+                .document(pedidoId)
+                .collection("cuentas")
+                .document(cuentaId)
+
+            val detallesRef = cuentaRef.collection("detalles")
+
+            // Verificar stock disponible
+            val stockActual = obtenerStock(productoId)
+            if (stockActual != null && cantidad > stockActual) {
+                return Result.failure(
+                    IllegalStateException(
+                        "Stock insuficiente. Disponible: $stockActual"
+                    )
+                )
+            }
+
+            // Buscar si ya existe el mismo producto+nota (no anulado)
+            val existentesSnap = detallesRef
+                .whereEqualTo("productoId", productoId)
+                .whereEqualTo("nota", nota)
+                .whereEqualTo("anulado", false)
+                .get()
+                .await()
+
+            if (!existentesSnap.isEmpty) {
+                // Sumar cantidad al existente
+                val docExistente = existentesSnap.documents.first()
+                val cantidadActual = docExistente.getLong("cantidad")?.toInt() ?: 0
+                val cantidadNueva  = cantidadActual + cantidad
+
+                // Revalidar stock con la cantidad acumulada
+                if (stockActual != null && (cantidadNueva - cantidadActual) > stockActual) {
+                    return Result.failure(
+                        IllegalStateException(
+                            "Stock insuficiente. Disponible: $stockActual"
+                        )
+                    )
+                }
+
+                detallesRef.document(docExistente.id)
+                    .update("cantidad", cantidadNueva)
+                    .await()
+            } else {
+                // Crear nuevo detalle
+                val nuevoDetalle = DetallePedido(
+                    id             = detallesRef.document().id,
+                    productoId     = productoId,
+                    nombreProducto = nombreProducto,
+                    precioUnitario = precioUnitario,
+                    cantidad       = cantidad,
+                    nota           = nota,
+                    imagenProducto = imagenUrl,
+                    anulado        = false,
+                    motivoAnulacion = "",
+                    cuentaId       = cuentaId
+                )
+                detallesRef.document(nuevoDetalle.id).set(nuevoDetalle).await()
+            }
+
+            // Descontar stock y recalcular total
+            descontarStock(productoId, cantidad)
+            recalcularTotalPedido(pedidoId)
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error agregando detalle a pedido activo: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Anula un detalle de un pedido activo (no lo elimina físicamente).
+     * - Marca anulado = true y guarda el motivo para auditoría.
+     * - Restaura el stock del producto.
+     * - Recalcula totalPagar del pedido.
+     */
+    suspend fun anularDetalleFirestore(
+        pedidoId: String,
+        cuentaId: String,
+        detalle: DetallePedido,
+        motivo: String
+    ): Result<Unit> {
+        return try {
+            val detalleRef = pedidosRef
+                .document(pedidoId)
+                .collection("cuentas")
+                .document(cuentaId)
+                .collection("detalles")
+                .document(detalle.id)
+
+            detalleRef.update(
+                mapOf(
+                    "anulado"         to true,
+                    "motivoAnulacion" to motivo
+                )
+            ).await()
+
+            // Restaurar stock completo del detalle anulado
+            restaurarStock(detalle.productoId, detalle.cantidad)
+
+            // Recalcular total
+            recalcularTotalPedido(pedidoId)
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error anulando detalle: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+// ─── Helpers privados ─────────────────────────────────────────────────────────
+
+    private suspend fun restaurarStock(productoId: String, cantidad: Int) {
+        try {
+            val docRef      = stockRef.document(productoId)
+            val stockActual = docRef.get().await().getLong("stock")?.toInt() ?: return
+            docRef.update("stock", stockActual + cantidad).await()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error restaurando stock $productoId: ${e.message}")
+        }
+    }
+
+    /**
+     * Suma los subtotales de todos los detalles activos (no anulados)
+     * de todas las cuentas del pedido y actualiza el campo totalPagar.
+     */
+    private suspend fun recalcularTotalPedido(pedidoId: String) {
+        try {
+            val cuentasSnap = pedidosRef
+                .document(pedidoId)
+                .collection("cuentas")
+                .get()
+                .await()
+
+            var total = 0.0
+            for (cuentaDoc in cuentasSnap.documents) {
+                val detallesSnap = cuentaDoc.reference
+                    .collection("detalles")
+                    .whereEqualTo("anulado", false)
+                    .get()
+                    .await()
+
+                total += detallesSnap.documents.sumOf { doc ->
+                    val precio   = doc.getDouble("precioUnitario") ?: 0.0
+                    val cantidad = doc.getLong("cantidad")?.toInt() ?: 0
+                    precio * cantidad
+                }
+            }
+
+            pedidosRef.document(pedidoId)
+                .update("totalPagar", total)
+                .await()
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error recalculando total: ${e.message}")
+        }
+    }
+
+
         // ─── Enum para estado de sincronización ────────────────────────────────────
 
         enum class EstadoSincronizacion {
@@ -1245,4 +1479,4 @@ class PedidoRepository {
             PENDIENTE_SINCRONIZACION,
             ERROR_CONEXION
         }
-    }
+}

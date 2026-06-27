@@ -51,12 +51,6 @@ class DetallesDetalleAdapter(
                 binding.tvNota.visibility = android.view.View.GONE
             }
 
-            // Botón eliminar
-            binding.btnEliminar.text = "🗑️"
-            binding.btnEliminar.setOnClickListener {
-                onEliminar(detalle)
-            }
-
             // Cargar imagen del producto
             if (detalle.imagenProducto.isNotEmpty()) {
                 binding.ivProducto.load(detalle.imagenProducto) {

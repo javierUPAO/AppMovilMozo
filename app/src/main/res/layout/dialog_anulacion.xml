@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+    <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="¿Por qué anulas este plato?"
+            android:textSize="14sp"
+            android:textColor="@color/text_secondary"
+            android:layout_marginBottom="12dp" />
+
+    <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/til_motivo"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Motivo de anulación">
+
+        <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/et_motivo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textCapSentences"
+                android:maxLines="3"
+                android:imeOptions="actionDone" />
+
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <TextView
+            android:id="@+id/tv_error_motivo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="El motivo es obligatorio"
+            android:textSize="12sp"
+            android:textColor="@color/error_color"
+            android:visibility="gone"
+            android:layout_marginTop="4dp" />
+
+</LinearLayout>
