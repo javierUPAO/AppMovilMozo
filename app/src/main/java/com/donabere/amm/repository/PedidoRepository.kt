@@ -556,6 +556,7 @@ class PedidoRepository {
         }
     }
 
+    //DEPRECADA
     suspend fun dividirCuentas(
         pedidoId: String,
         division: Map<String, List<DetallePedido>>
@@ -598,6 +599,9 @@ class PedidoRepository {
             Result.failure(e)
         }
     }
+
+    //Nuevo dividir cuenta real
+
 
         suspend fun marcarCuentaPagada(pedidoId: String, cuentaId: String): Result<Unit> {
             return try {
