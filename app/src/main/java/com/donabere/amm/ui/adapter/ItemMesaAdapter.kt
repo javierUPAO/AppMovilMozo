@@ -56,14 +56,35 @@ class ItemMesaAdapter(
             }
             binding.tvIdMesa.text = displayId
 
-            // Configurar contorno de grupo
-            if (mesa.grupoId != null) {
-                binding.root.setStrokeColor(ColorStateList.valueOf(Color.parseColor("#4A90E2")))
-                binding.root.strokeWidth = 6
-            } else {
-                binding.root.setStrokeColor(ColorStateList.valueOf(Color.TRANSPARENT))
-                binding.root.strokeWidth = 0
+            // Calcular tiempo de espera y estados de alerta
+            var strokeColor = Color.TRANSPARENT
+            var strokeWidth = 0
+            var diffMin = 0
+            var isDelayed = false
+            var isWarning = false
+
+            if (mesa.estado == EstadoMesa.OCUPADA && mesa.ultimaAtencion != null) {
+                val now = com.google.firebase.Timestamp.now().seconds
+                val diffSec = now - mesa.ultimaAtencion.seconds
+                diffMin = (diffSec / 60).toInt()
+                if (diffMin >= 10) {
+                    isDelayed = true
+                    strokeColor = Color.parseColor("#E74C3C") // Rojo para Demora
+                    strokeWidth = 6
+                } else if (diffMin >= 5) {
+                    isWarning = true
+                    strokeColor = Color.parseColor("#F1C40F") // Amarillo para Próxima a demora
+                    strokeWidth = 6
+                }
             }
+
+            if (!isDelayed && !isWarning && mesa.grupoId != null) {
+                strokeColor = Color.parseColor("#4A90E2") // Azul para agrupación normal
+                strokeWidth = 6
+            }
+
+            binding.root.setStrokeColor(ColorStateList.valueOf(strokeColor))
+            binding.root.strokeWidth = strokeWidth
 
             // Habilitar Drag & Drop
             binding.root.setOnLongClickListener { view ->
@@ -92,13 +113,8 @@ class ItemMesaAdapter(
                         true
                     }
                     DragEvent.ACTION_DRAG_EXITED -> {
-                        if (mesa.grupoId != null) {
-                            card.setStrokeColor(ColorStateList.valueOf(Color.parseColor("#4A90E2")))
-                            card.strokeWidth = 6
-                        } else {
-                            card.setStrokeColor(ColorStateList.valueOf(Color.TRANSPARENT))
-                            card.strokeWidth = 0
-                        }
+                        card.setStrokeColor(ColorStateList.valueOf(strokeColor))
+                        card.strokeWidth = strokeWidth
                         true
                     }
                     DragEvent.ACTION_DROP -> {
@@ -109,13 +125,8 @@ class ItemMesaAdapter(
                         true
                     }
                     DragEvent.ACTION_DRAG_ENDED -> {
-                        if (mesa.grupoId != null) {
-                            card.setStrokeColor(ColorStateList.valueOf(Color.parseColor("#4A90E2")))
-                            card.strokeWidth = 6
-                        } else {
-                            card.setStrokeColor(ColorStateList.valueOf(Color.TRANSPARENT))
-                            card.strokeWidth = 0
-                        }
+                        card.setStrokeColor(ColorStateList.valueOf(strokeColor))
+                        card.strokeWidth = strokeWidth
                         true
                     }
                     else -> false
@@ -130,6 +141,7 @@ class ItemMesaAdapter(
                     binding.tvCapacidad.text = ""
                     binding.tvCapacidadTexto.text = ""
                     binding.tvEstado.text = ""
+                    binding.llAlertaDemora.visibility = View.GONE
 
                     binding.root.alpha = 1f
                     binding.root.isEnabled = true
@@ -145,6 +157,20 @@ class ItemMesaAdapter(
                     binding.tvEstado.text = "OCUPADA"
                     binding.tvEstado.setTextColor(Color.parseColor("#F5A623"))
 
+                    if (isDelayed) {
+                        binding.llAlertaDemora.visibility = View.VISIBLE
+                        binding.ivAlertaDemora.setColorFilter(Color.parseColor("#E74C3C"))
+                        binding.tvTiempoEspera.text = "DEMORA: ${diffMin} min"
+                        binding.tvTiempoEspera.setTextColor(Color.parseColor("#E74C3C"))
+                    } else if (isWarning) {
+                        binding.llAlertaDemora.visibility = View.VISIBLE
+                        binding.ivAlertaDemora.setColorFilter(Color.parseColor("#F1C40F"))
+                        binding.tvTiempoEspera.text = "ESPERA: ${diffMin} min"
+                        binding.tvTiempoEspera.setTextColor(Color.parseColor("#F1C40F"))
+                    } else {
+                        binding.llAlertaDemora.visibility = View.GONE
+                    }
+
                     binding.root.alpha = 1f
                     binding.root.isEnabled = true
                     binding.root.setOnClickListener { onMesaClick(mesa) }
@@ -153,6 +179,7 @@ class ItemMesaAdapter(
                 else -> {
                     binding.tvEstado.setTextColor(Color.GRAY)
                     binding.ivIconoMesa.setColorFilter(Color.GRAY)
+                    binding.llAlertaDemora.visibility = View.GONE
                     binding.root.alpha = 0.5f
                     binding.root.isEnabled = false
                     binding.root.setOnClickListener(null)

@@ -244,11 +244,25 @@ class DetallePedidoActivity : AppCompatActivity() {
                     )
                 }
 
+                // Obtener ultimaAtencion de la mesa para el tiempo de espera
+                val mesaSnap = mesasRef.document(mesaId).get().await()
+                val ultimaAtencion = mesaSnap.getTimestamp("ultimaAtencion")
+
                 withContext(Dispatchers.Main) {
                     progressBar.visibility = View.GONE
                     estadoPedido           = estado
                     cuentaIdPrincipal      = cuentaId
                     detallesActuales       = todosLosDetalles
+
+                    // Calcular y mostrar tiempo transcurrido si corresponde
+                    if (ultimaAtencion != null && estado != EstadoPedido.PAGADO) {
+                        val now = com.google.firebase.Timestamp.now().seconds
+                        val diffSec = now - ultimaAtencion.seconds
+                        val diffMin = (diffSec / 60).toInt()
+                        tvMesa.text = "Mesa $mesaId | Espera: $diffMin min"
+                    } else {
+                        tvMesa.text = "Mesa $mesaId"
+                    }
 
                     actualizarChipEstado(estado)
                     actualizarModoUI(todosLosDetalles, total)
