@@ -441,7 +441,8 @@ class PedidoRepository {
                     mesaRef,
                     mapOf(
                         "estado" to "OCUPADA",
-                        "pedidoId" to pedido.id
+                        "pedidoId" to pedido.id,
+                        "ultimaAtencion" to Timestamp.now()
                     )
                 )
             }
@@ -533,7 +534,8 @@ class PedidoRepository {
                     mesaRef,
                     mapOf(
                         "estado" to "OCUPADA",
-                        "pedidoId" to pedido.id
+                        "pedidoId" to pedido.id,
+                        "ultimaAtencion" to Timestamp.now()
                     )
                 )
             }
@@ -913,7 +915,8 @@ class PedidoRepository {
                                 "estado" to "LIBRE",
                                 "pedidoId" to null,
                                 "grupoId" to null,
-                                "mesasAgrupadas" to emptyList<String>()
+                                "mesasAgrupadas" to emptyList<String>(),
+                                "ultimaAtencion" to null
                             )
                         )
                     }
@@ -929,6 +932,7 @@ class PedidoRepository {
                         .update("estado", nuevoEstado)
                         .await()
                     Log.d(TAG, "Estado del Pedido cambió a: $nuevoEstado")
+                    actualizarUltimaAtencionMesasDelPedido(pedidoId)
                 }
 
                 Result.success(Unit)
@@ -1002,7 +1006,8 @@ class PedidoRepository {
                                     "estado" to "LIBRE",
                                     "pedidoId" to null,
                                     "grupoId" to null,
-                                    "mesasAgrupadas" to emptyList<String>()
+                                    "mesasAgrupadas" to emptyList<String>(),
+                                    "ultimaAtencion" to null
                                 )
                             )
                             .await()
@@ -1287,6 +1292,7 @@ class PedidoRepository {
 
             // Recalcular totalPagar del pedido
             recalcularTotalPedido(pedidoId)
+            actualizarUltimaAtencionMesasDelPedido(pedidoId)
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -1375,6 +1381,7 @@ class PedidoRepository {
             // Descontar stock y recalcular total
             descontarStock(productoId, cantidad)
             recalcularTotalPedido(pedidoId)
+            actualizarUltimaAtencionMesasDelPedido(pedidoId)
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -1415,6 +1422,7 @@ class PedidoRepository {
 
             // Recalcular total
             recalcularTotalPedido(pedidoId)
+            actualizarUltimaAtencionMesasDelPedido(pedidoId)
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -1468,6 +1476,24 @@ class PedidoRepository {
 
         } catch (e: Exception) {
             Log.e(TAG, "Error recalculando total: ${e.message}")
+        }
+    }
+
+    private suspend fun actualizarUltimaAtencionMesasDelPedido(pedidoId: String) {
+        try {
+            val pedidoSnap = pedidosRef.document(pedidoId).get().await()
+            val mesasIds = (pedidoSnap.get("mesasIds") as? List<*>)?.mapNotNull { it as? String } ?: emptyList()
+            if (mesasIds.isNotEmpty()) {
+                val batch = db.batch()
+                val now = Timestamp.now()
+                mesasIds.forEach { mesaId ->
+                    batch.update(mesasRef.document(mesaId.trim()), "ultimaAtencion", now)
+                }
+                batch.commit().await()
+                Log.d(TAG, "Ultima atencion actualizada en mesas: $mesasIds")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error actualizando ultima atencion en mesas: ${e.message}")
         }
     }
 

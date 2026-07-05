@@ -76,6 +76,38 @@
                 android:clickable="false"
                 android:focusable="false"
             />
+
+        <!-- Alerta de Demora y Tiempo de Espera -->
+        <LinearLayout
+            android:id="@+id/llAlertaDemora"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="4dp"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <ImageView
+                android:id="@+id/ivAlertaDemora"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:src="@drawable/ic_warning"
+                android:layout_marginEnd="4dp"
+                android:clickable="false"
+                android:focusable="false" />
+
+            <TextView
+                android:id="@+id/tvTiempoEspera"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#E74C3C"
+                tools:text="DEMORA: 12 min"
+                android:clickable="false"
+                android:focusable="false" />
+        </LinearLayout>
     </LinearLayout>
 
 </com.google.android.material.card.MaterialCardView>

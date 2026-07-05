@@ -23,6 +23,7 @@ class MesasRepository {
                 val pedidoId = doc.getString("pedidoId")
                 val grupoId = doc.getString("grupoId")
                 val mesasAgrupadas = (doc.get("mesasAgrupadas") as? List<*>)?.mapNotNull { it as? String } ?: emptyList()
+                val ultimaAtencion = doc.getTimestamp("ultimaAtencion")
 
                 Mesa(
                     id = doc.id,
@@ -30,7 +31,8 @@ class MesasRepository {
                     numClientes = numClientes,
                     pedidoId = pedidoId,
                     grupoId = grupoId,
-                    mesasAgrupadas = mesasAgrupadas
+                    mesasAgrupadas = mesasAgrupadas,
+                    ultimaAtencion = ultimaAtencion
                 )
             }
 
