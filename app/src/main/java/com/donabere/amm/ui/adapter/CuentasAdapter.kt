@@ -8,10 +8,11 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.donabere.amm.databinding.ItemCuentaBinding
 import com.donabere.amm.model.Cuenta
+import com.donabere.amm.model.DetallePedido
 import com.donabere.amm.model.enums.EstadoCuenta
 
 class CuentasAdapter(
-    private val onPagarClick: (Cuenta) -> Unit
+    private val onPagarClick: (Cuenta) -> Unit,
 ) : RecyclerView.Adapter<CuentasAdapter.ViewHolder>() {
 
     private var lista = listOf<Cuenta>()

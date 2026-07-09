@@ -11,19 +11,14 @@ import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
-import androidx.fragment.app.viewModels
-import androidx.recyclerview.widget.LinearLayoutManager
+
 import androidx.recyclerview.widget.RecyclerView
-import com.donabere.amm.R
 import com.donabere.amm.model.DetallePedido
-import com.donabere.amm.model.PersonaCuenta
-import com.donabere.amm.repository.PedidoRepository
 import com.donabere.amm.ui.adapter.ItemDivisibleAdapter
-import com.donabere.amm.viewmodel.DividirCuentaViewModel
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.tabs.TabLayout
-import com.google.android.material.textfield.TextInputEditText
+
 
 /**
  * Dialog de división de cuenta.
@@ -37,6 +32,7 @@ import com.google.android.material.textfield.TextInputEditText
  *       // recargar UI
  *   }
  */
+//DEPRECADO
 class DividirCuentaDialog : BottomSheetDialogFragment() {
 
     companion object {
@@ -66,13 +62,6 @@ class DividirCuentaDialog : BottomSheetDialogFragment() {
         requireArguments().getString(ARG_PEDIDO_ID, "")
     }
 
-    private val viewModel: DividirCuentaViewModel by viewModels {
-        DividirCuentaViewModel.Factory(
-            repository = PedidoRepository(),
-            pedidoId   = pedidoId,
-            detalles   = detallesTmp
-        )
-    }
 
     // ── Views ─────────────────────────────────────────────────────────────────
     private lateinit var tabLayout: TabLayout
@@ -88,11 +77,11 @@ class DividirCuentaDialog : BottomSheetDialogFragment() {
     private lateinit var itemsAdapter: ItemDivisibleAdapter
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
-    override fun onCreateView(
+   /* override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View = inflater.inflate(R.layout.dialog_dividir_cuenta, container, false)
+    ): View = inflater.inflate(R.layout.old_dialog_dividir_cuenta, container, false)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -253,5 +242,5 @@ class DividirCuentaDialog : BottomSheetDialogFragment() {
 
             llResumen.addView(card)
         }
-    }
+    }*/
 }

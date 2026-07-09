@@ -1,194 +1,269 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    dialog_dividir_cuenta.xml
-    ┌─────────────────────────────┐
-    │  Dividir Cuenta       [X]   │
-    │  Personas que pagarán [+]   │
-    │  ○ Persona 1  [nombre] [🗑] │
-    │  ○ Persona 2  [nombre] [🗑] │
-    │  ─────────────────────────  │
-    │  [Asignar ítems] [Resumen]  │  ← tabs
-    │                             │
-    │  RecyclerView / Resumen     │
-    │                             │
-    │  ⚠ 2 ítems sin asignar      │
-    │  [Cancelar]  [Guardar]      │
-    └─────────────────────────────┘
--->
-<LinearLayout
-        xmlns:android="http://schemas.android.com/apk/res/android"
-        xmlns:app="http://schemas.android.com/apk/res-auto"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#FFFFFF">
+
+    <!-- Header -->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:background="@color/background_color">
-
-    <!-- Header: título + cerrar -->
-    <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:padding="16dp">
+        android:layout_height="52dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="12dp"
+        android:background="#FFFFFF">
 
         <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Dividir Cuenta"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                android:textColor="@color/text_primary" />
+            android:id="@+id/tv_titulo_dialog"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Dividir Cuenta"
+            android:textColor="#000000"
+            android:textSize="18sp"
+            android:textStyle="bold" />
 
-        <ImageButton
-                android:id="@+id/btn_cerrar_dialog"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:src="@drawable/ic_x"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Cerrar" />
+        <TextView
+            android:id="@+id/btn_cerrar"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:gravity="center"
+            android:text="×"
+            android:textColor="#9CA3AF"
+            android:textSize="28sp" />
 
     </LinearLayout>
 
-    <!-- Separador -->
     <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="@color/divider_color" />
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#FDE68A" />
 
-    <!-- Sección personas -->
+    <!-- Tabs visuales -->
     <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:paddingTop="12dp">
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:gravity="center">
 
         <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Personas que pagarán"
-                android:textSize="14sp"
-                android:textColor="@color/text_secondary" />
+            android:id="@+id/tv_tab_asignar"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="Asignar Productos"
+            android:textColor="#F59E0B"
+            android:textSize="14sp"
+            android:textStyle="bold" />
 
-        <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_agregar_persona"
-                android:layout_width="wrap_content"
-                android:layout_height="36dp"
-                android:text="Agregar"
-                android:textSize="13sp"
-                app:backgroundTint="@color/primary_color"
-                app:icon="@drawable/ic_add"
-                app:iconSize="16dp" />
+        <TextView
+            android:id="@+id/tv_tab_resumen"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="Resumen"
+            android:textColor="#8A8A8A"
+            android:textSize="14sp" />
 
     </LinearLayout>
 
-    <!-- Lista dinámica de personas (se puebla por código) -->
-    <LinearLayout
-            android:id="@+id/ll_personas"
+    <!-- Contenido scroll -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:paddingTop="8dp"
-            android:paddingBottom="4dp" />
+            android:padding="12dp">
 
-    <!-- Separador -->
-    <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="@color/divider_color"
-            android:layout_marginTop="8dp" />
+            <!-- SECCIÓN ASIGNAR PRODUCTOS -->
+            <LinearLayout
+                android:id="@+id/layout_asignar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
 
-    <!-- Tabs Asignar ítems / Resumen -->
-    <com.google.android.material.tabs.TabLayout
-            android:id="@+id/tab_layout_division"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:tabIndicatorColor="@color/primary_color"
-            app:tabSelectedTextColor="@color/primary_color"
-            app:tabTextColor="@color/text_secondary"
-            app:tabMode="fixed" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Productos"
+                    android:textColor="#8A8A8A"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="8dp" />
 
-    <!-- ProgressBar -->
-    <ProgressBar
-            android:id="@+id/pb_division"
-            style="?android:attr/progressBarStyleSmall"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:visibility="gone"
-            android:layout_marginTop="4dp" />
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_productos"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false" />
 
-    <!-- Lista de ítems (tab 0) -->
-    <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rv_items_division"
-            android:layout_width="match_parent"
-            android:layout_height="320dp"
-            android:clipToPadding="false"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:paddingTop="8dp"
-            android:paddingBottom="8dp" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="24dp">
 
-    <!-- Resumen por persona (tab 1, oculto inicialmente) -->
-    <ScrollView
-            android:layout_width="match_parent"
-            android:layout_height="320dp"
-            android:visibility="gone">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Cuentas"
+                        android:textColor="#8A8A8A"
+                        android:textSize="14sp" />
 
-        <LinearLayout
-                android:id="@+id/ll_resumen"
+                    <Button
+                        android:id="@+id/btn_agregar_cuenta"
+                        android:layout_width="wrap_content"
+                        android:layout_height="40dp"
+                        android:text="Agregar"
+                        android:textAllCaps="false"
+                        android:textColor="#FFFFFF"
+                        android:backgroundTint="#F59E0B" />
+
+                </LinearLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_cuentas"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false" />
+
+            </LinearLayout>
+
+            <!-- SECCIÓN RESUMEN -->
+            <LinearLayout
+                android:id="@+id/layout_resumen"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:paddingTop="8dp"
-                android:paddingBottom="8dp" />
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Cuentas"
+                    android:textColor="#8A8A8A"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="8dp" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_resumen_cuentas"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false" />
+
+                <Space
+                    android:layout_width="match_parent"
+                    android:layout_height="100dp" />
+
+            </LinearLayout>
+
+            <!-- Totales inferiores -->
+            <LinearLayout
+                android:id="@+id/layout_totales_resumen"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="24dp"
+                android:padding="8dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Total a Dividir"
+                        android:textColor="#000000"
+                        android:textSize="16sp" />
+
+                    <TextView
+                        android:id="@+id/tv_total_dividir"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="S/. 0.00"
+                        android:textColor="#000000"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="8dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Personas que pagan:"
+                        android:textColor="#000000"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:id="@+id/tv_personas_pagan"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textColor="#000000"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </LinearLayout>
 
     </ScrollView>
 
-    <!-- Aviso ítems sin asignar -->
-    <TextView
-            android:id="@+id/tv_sin_asignar"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:layout_marginStart="16dp"
-            android:layout_marginEnd="16dp"
-            android:layout_marginTop="4dp"
-            android:text="0 ítems sin asignar"
-            android:textSize="13sp"
-            android:textColor="@color/error_color"
-            android:visibility="gone" />
-
-    <!-- Botones de acción -->
+    <!-- Botones inferiores -->
     <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:padding="16dp"
-            android:gravity="end">
+        android:layout_width="match_parent"
+        android:layout_height="72dp"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:padding="12dp"
+        android:background="#FFFFFF">
 
         <Button
-                android:id="@+id/btn_cancelar_division"
-                style="@style/Widget.MaterialComponents.Button.TextButton"
-                android:layout_width="wrap_content"
-                android:layout_height="48dp"
-                android:text="Cancelar"
-                android:layout_marginEnd="8dp" />
+            android:id="@+id/btn_cancelar"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:text="Cancelar"
+            android:textAllCaps="false"
+            android:textColor="#000000"
+            android:backgroundTint="#FFFFFF" />
 
-        <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_guardar_division"
-                android:layout_width="wrap_content"
-                android:layout_height="48dp"
-                android:text="Guardar División"
-                app:backgroundTint="@color/primary_color" />
+        <Button
+            android:id="@+id/btn_guardar_division"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:text="Guardar División"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#F59E0B" />
 
     </LinearLayout>
 
