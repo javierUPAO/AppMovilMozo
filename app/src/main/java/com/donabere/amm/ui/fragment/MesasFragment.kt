@@ -128,7 +128,22 @@ class MesasFragment : Fragment() {
 
     private fun observeViewModel() {
         viewModel.mesas.observe(viewLifecycleOwner) { mesas ->
-            adapter.submitList(mesas)
+            val sortedMesas = mesas.sortedWith { m1, m2 ->
+                val state1 = m1.estado == EstadoMesa.OCUPADA
+                val state2 = m2.estado == EstadoMesa.OCUPADA
+                if (state1 && !state2) {
+                    -1
+                } else if (!state1 && state2) {
+                    1
+                } else if (state1 && state2) {
+                    val t1 = m1.ultimaAtencion?.seconds ?: Long.MAX_VALUE
+                    val t2 = m2.ultimaAtencion?.seconds ?: Long.MAX_VALUE
+                    t1.compareTo(t2)
+                } else {
+                    m1.id.compareTo(m2.id)
+                }
+            }
+            adapter.submitList(sortedMesas)
             binding.rvMesas.visibility = View.VISIBLE
             binding.tvError.visibility = View.GONE
         }

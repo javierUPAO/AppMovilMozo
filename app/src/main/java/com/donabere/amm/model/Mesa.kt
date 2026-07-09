@@ -8,5 +8,6 @@ data class Mesa(
     val numClientes: Int,
     val pedidoId: String? = null,   // no null cuando está OCUPADA
     val grupoId: String? = null,
-    val mesasAgrupadas: List<String> = emptyList()
+    val mesasAgrupadas: List<String> = emptyList(),
+    val ultimaAtencion: com.google.firebase.Timestamp? = null
 )
