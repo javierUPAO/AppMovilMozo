@@ -8,6 +8,9 @@ import com.donabere.amm.model.DetallePedido
 import com.donabere.amm.model.Pedido
 import com.donabere.amm.model.enums.EstadoCuenta
 import com.donabere.amm.model.enums.EstadoPedido
+import com.donabere.amm.model.ui.CuentaDivisionUi
+import com.donabere.amm.model.ui.EstadoDivisionCuentaUi
+import com.donabere.amm.model.ui.ProductoDividirUi
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.MetadataChanges
@@ -603,7 +606,304 @@ class PedidoRepository {
     }
 
     //Nuevo dividir cuenta real
+    suspend fun guardarDivisionCuentas(
+        pedidoId: String,
+        cuentasDivididas: List<CuentaDivisionUi>
+    ): Result<Unit> {
 
+        return try {
+
+            val pedidoRef = pedidosRef.document(pedidoId)
+
+            val detallesActivos = cuentasDivididas
+                .flatMap { it.detalles }
+                .filter { !it.anulado }
+
+            if (detallesActivos.isEmpty()) {
+                return Result.failure(
+                    IllegalStateException("No hay productos asignados a las cuentas")
+                )
+            }
+
+            val totalPedido = cuentasDivididas.sumOf { it.total }
+
+            val batch = db.batch()
+
+            // 1. Borrar cuentas anteriores y sus detalles
+            val cuentasActuales = pedidoRef
+                .collection("cuentas")
+                .get()
+                .await()
+
+            for (cuentaDoc in cuentasActuales.documents) {
+
+                val detallesSnapshot = cuentaDoc.reference
+                    .collection("detalles")
+                    .get()
+                    .await()
+
+                for (detalleDoc in detallesSnapshot.documents) {
+                    batch.delete(detalleDoc.reference)
+                }
+
+                batch.delete(cuentaDoc.reference)
+            }
+
+            // 2. Crear nuevas cuentas y detalles
+            cuentasDivididas.forEachIndexed { index, cuentaUi ->
+
+                val cuentaId = cuentaUi.id.ifBlank { "cuenta_${index + 1}" }
+
+                val cuentaRef = pedidoRef
+                    .collection("cuentas")
+                    .document(cuentaId)
+
+                batch.set(
+                    cuentaRef,
+                    mapOf(
+                        "id" to cuentaId,
+                        "nombre" to cuentaUi.nombre,
+                        "estadoPago" to EstadoCuenta.PENDIENTE.name,
+                        "total" to cuentaUi.total
+                    )
+                )
+
+                cuentaUi.detalles
+                    .filter { !it.anulado && it.cantidad > 0 }
+                    .forEach { detalle ->
+
+                        val detalleId = detalle.id.ifBlank {
+                            "detalle_${System.currentTimeMillis()}"
+                        }
+
+                        val detalleRef = cuentaRef
+                            .collection("detalles")
+                            .document(detalleId)
+
+                        batch.set(
+                            detalleRef,
+                            mapOf(
+                                "id" to detalleId,
+                                "productoId" to detalle.productoId,
+                                "nombreProducto" to detalle.nombreProducto,
+                                "precioUnitario" to detalle.precioUnitario,
+                                "cantidad" to detalle.cantidad,
+                                "nota" to detalle.nota,
+                                "imagenProducto" to detalle.imagenProducto,
+                                "anulado" to false,
+                                "motivoAnulacion" to "",
+                                "cuentaId" to cuentaId
+                            )
+                        )
+                    }
+            }
+
+            // 3. Actualizar total del pedido
+            batch.update(
+                pedidoRef,
+                mapOf(
+                    "totalPagar" to totalPedido
+                )
+            )
+
+            batch.commit().await()
+
+            Result.success(Unit)
+
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun obtenerProductosParaDividir(
+        pedidoId: String
+    ): Result<List<ProductoDividirUi>> {
+
+        return try {
+
+            val pedidoRef = pedidosRef.document(pedidoId)
+
+            val cuentasSnapshot = pedidoRef
+                .collection("cuentas")
+                .get()
+                .await()
+
+            val todosLosDetalles = mutableListOf<DetallePedido>()
+
+            for (cuentaDoc in cuentasSnapshot.documents) {
+
+                val detallesSnapshot = cuentaDoc.reference
+                    .collection("detalles")
+                    .whereEqualTo("anulado", false)
+                    .get()
+                    .await()
+
+                val detalles = detallesSnapshot.documents.mapNotNull { doc ->
+
+                    try {
+                        DetallePedido(
+                            id = doc.id,
+                            productoId = doc.getString("productoId") ?: "",
+                            nombreProducto = doc.getString("nombreProducto") ?: "",
+                            precioUnitario = doc.getDouble("precioUnitario") ?: 0.0,
+                            cantidad = (doc.getLong("cantidad") ?: 1).toInt(),
+                            nota = doc.getString("nota") ?: "",
+                            anulado = doc.getBoolean("anulado") ?: false,
+                            motivoAnulacion = doc.getString("motivoAnulacion") ?: "",
+                            imagenProducto = doc.getString("imagenProducto") ?: "",
+                            cuentaId = cuentaDoc.id
+                        )
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+
+                todosLosDetalles.addAll(detalles)
+            }
+
+            val productosAgrupados = todosLosDetalles
+                .filter { !it.anulado }
+                .groupBy {
+                    generarKeyDivision(
+                        productoId = it.productoId,
+                        precioUnitario = it.precioUnitario,
+                        nota = it.nota
+                    )
+                }
+                .map { (key, detalles) ->
+
+                    val primero = detalles.first()
+                    val cantidadTotal = detalles.sumOf { it.cantidad }
+
+                    ProductoDividirUi(
+                        key = key,
+                        productoId = primero.productoId,
+                        nombreProducto = primero.nombreProducto,
+                        precioUnitario = primero.precioUnitario,
+                        nota = primero.nota,
+                        imagenProducto = primero.imagenProducto,
+                        cantidadTotal = cantidadTotal,
+                        cantidadDisponible = cantidadTotal
+                    )
+                }
+
+            Result.success(productosAgrupados)
+
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    suspend fun obtenerEstadoDivisionCuenta(
+        pedidoId: String
+    ): Result<EstadoDivisionCuentaUi> {
+        return try {
+            val pedidoRef = pedidosRef.document(pedidoId)
+
+            val cuentasSnapshot = pedidoRef
+                .collection("cuentas")
+                .get()
+                .await()
+
+            val cuentasUi = mutableListOf<CuentaDivisionUi>()
+            val todosLosDetalles = mutableListOf<DetallePedido>()
+
+            for (cuentaDoc in cuentasSnapshot.documents) {
+                val cuentaId = cuentaDoc.id
+
+                val nombreCuenta = cuentaDoc.getString("nombre")
+                    ?: "Cuenta ${cuentasUi.size + 1}"
+
+                val detallesSnapshot = cuentaDoc.reference
+                    .collection("detalles")
+                    .get()
+                    .await()
+
+                val detalles = detallesSnapshot.documents.mapNotNull { detalleDoc ->
+                    try {
+                        DetallePedido(
+                            id = detalleDoc.id,
+                            productoId = detalleDoc.getString("productoId") ?: "",
+                            nombreProducto = detalleDoc.getString("nombreProducto") ?: "",
+                            precioUnitario = detalleDoc.getDouble("precioUnitario") ?: 0.0,
+                            cantidad = (detalleDoc.get("cantidad") as? Number)?.toInt() ?: 1,
+                            nota = detalleDoc.getString("nota") ?: "",
+                            anulado = detalleDoc.getBoolean("anulado") ?: false,
+                            motivoAnulacion = detalleDoc.getString("motivoAnulacion") ?: "",
+                            imagenProducto = detalleDoc.getString("imagenProducto") ?: "",
+                            cuentaId = cuentaId
+                        )
+                    } catch (e: Exception) {
+                        null
+                    }
+                }.filter { !it.anulado && it.cantidad > 0 }
+
+                todosLosDetalles.addAll(detalles)
+
+                cuentasUi.add(
+                    CuentaDivisionUi(
+                        id = cuentaId,
+                        nombre = nombreCuenta,
+                        detalles = detalles
+                    )
+                )
+            }
+
+            val productosUi = todosLosDetalles
+                .groupBy {
+                    generarKeyDivision(
+                        productoId = it.productoId,
+                        precioUnitario = it.precioUnitario,
+                        nota = it.nota
+                    )
+                }
+                .map { (key, detalles) ->
+                    val primero = detalles.first()
+                    val cantidadTotal = detalles.sumOf { it.cantidad }
+
+                    ProductoDividirUi(
+                        key = key,
+                        productoId = primero.productoId,
+                        nombreProducto = primero.nombreProducto,
+                        precioUnitario = primero.precioUnitario,
+                        nota = primero.nota,
+                        imagenProducto = primero.imagenProducto,
+                        cantidadTotal = cantidadTotal,
+
+                        // IMPORTANTE:
+                        // Como ya están asignados en cuentas, arriba aparecen sin cantidad libre.
+                        cantidadDisponible = 0
+                    )
+                }
+
+            val cuentasFinales = cuentasUi.ifEmpty {
+                listOf(
+                    CuentaDivisionUi(
+                        id = "cuenta_1",
+                        nombre = "Cuenta 1",
+                        detalles = emptyList()
+                    )
+                )
+            }
+
+            Result.success(
+                EstadoDivisionCuentaUi(
+                    productos = productosUi,
+                    cuentas = cuentasFinales
+                )
+            )
+
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun generarKeyDivision(
+        productoId: String,
+        precioUnitario: Double,
+        nota: String
+    ): String {
+        return "$productoId|$precioUnitario|$nota"
+    }
 
         suspend fun marcarCuentaPagada(pedidoId: String, cuentaId: String): Result<Unit> {
             return try {

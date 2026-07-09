@@ -17,7 +17,8 @@ class PedidosAdapter(
     private val onEliminarDetalle: (Pedido, DetallePedido) -> Unit,
     private val onAgregarPlato: (Pedido) -> Unit,
     private val onCambiarEstadoPedido: (Pedido) -> Unit,
-    private val onPagarCuenta: (Pedido) -> Unit
+    private val onPagarCuenta: (Pedido) -> Unit,
+    private val onDividirCuenta: (Pedido) -> Unit
 ) : RecyclerView.Adapter<PedidosAdapter.PedidoViewHolder>() {
 
     private var pedidos: List<Pedido> = emptyList()
@@ -124,27 +125,35 @@ class PedidosAdapter(
                 onPagarCuenta(pedido)
             }
 
+            binding.btnDividirCuenta.setOnClickListener {
+                onDividirCuenta(pedido)
+            }
+
             when (pedido.estado) {
 
                 EstadoPedido.ATENDIDO -> {
                     binding.btnCambiarEstadoPedido.visibility = View.GONE
                     binding.btnPagarCuenta.visibility = View.VISIBLE
+                    binding.btnDividirCuenta.visibility = View.VISIBLE
                 }
 
                 EstadoPedido.PAGO_EN_PROCESO,
                 EstadoPedido.PAGADO_PARCIAL -> {
                     binding.btnCambiarEstadoPedido.visibility = View.GONE
                     binding.btnPagarCuenta.visibility = View.VISIBLE
+                    binding.btnDividirCuenta.visibility = View.GONE
                 }
 
                 EstadoPedido.PAGADO -> {
                     binding.btnCambiarEstadoPedido.visibility = View.GONE
                     binding.btnPagarCuenta.visibility = View.GONE
+                    binding.btnDividirCuenta.visibility = View.GONE
                 }
 
                 else -> {
                     binding.btnCambiarEstadoPedido.visibility = View.VISIBLE
                     binding.btnPagarCuenta.visibility = View.GONE
+                    binding.btnDividirCuenta.visibility = View.GONE
                 }
             }
         }

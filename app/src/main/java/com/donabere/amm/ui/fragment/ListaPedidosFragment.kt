@@ -69,6 +69,9 @@ class ListaPedidosFragment : Fragment() {
             },
             onPagarCuenta = { pedido ->
                 abrirDialogoPagarCuenta(pedido)
+            },
+            onDividirCuenta = { pedido ->
+                abrirDialogoDividirCuenta(pedido)
             }
         )
         
@@ -219,6 +222,11 @@ class ListaPedidosFragment : Fragment() {
             }
             .setNegativeButton("Cancelar", null)
             .show()
+    }
+
+    private fun abrirDialogoDividirCuenta(pedido: Pedido) {
+        val dialog = DialogDividirCuentaFragment.newInstance(pedido.id)
+        dialog.show(childFragmentManager, "DialogDividirCuenta")
     }
 
     private fun cambiarEstadoPedido(pedido: com.donabere.amm.model.Pedido) {
