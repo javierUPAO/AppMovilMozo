@@ -285,7 +285,8 @@ class PedidoViewModel(
                 pedidoId = pedidoId,
                 cuentaId = cuentaId,
                 detalle  = detalle,
-                motivo   = motivo
+                motivo   = motivo,
+                mozoId   = mozoId
             ).fold(
                 onSuccess = { _uiState.value = UiState.Success("Plato anulado") },
                 onFailure = { e -> _uiState.value = UiState.Error(e.message ?: "Error al anular") }

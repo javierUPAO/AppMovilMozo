@@ -1704,7 +1704,8 @@ class PedidoRepository {
         pedidoId: String,
         cuentaId: String,
         detalle: DetallePedido,
-        motivo: String
+        motivo: String,
+        mozoId: String
     ): Result<Unit> {
         return try {
             val detalleRef = pedidosRef
@@ -1714,12 +1715,30 @@ class PedidoRepository {
                 .collection("detalles")
                 .document(detalle.id)
 
-            detalleRef.update(
+            val auditoriaRef = db.collection("auditoria_anulaciones").document()
+
+            val batch = db.batch()
+
+            batch.update(
+                detalleRef,
                 mapOf(
                     "anulado"         to true,
                     "motivoAnulacion" to motivo
                 )
-            ).await()
+            )
+
+            val auditoriaData = hashMapOf(
+                "pedidoId"       to pedidoId,
+                "cuentaId"       to cuentaId,
+                "detalleId"      to detalle.id,
+                "nombreProducto" to detalle.nombreProducto,
+                "motivo"         to motivo,
+                "mozoId"         to mozoId,
+                "fechaAnulacion" to Timestamp.now()
+            )
+            batch.set(auditoriaRef, auditoriaData)
+
+            batch.commit().await()
 
             // Restaurar stock completo del detalle anulado
             restaurarStock(detalle.productoId, detalle.cantidad)
