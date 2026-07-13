@@ -139,8 +139,9 @@ class ItemMesaAdapter(
                     binding.ivIconoMesa.clearColorFilter()
                     binding.tvIdMesa.setTextColor(Color.BLACK)
                     binding.tvCapacidad.text = ""
-                    binding.tvCapacidadTexto.text = ""
+                    binding.tvCapacidad.visibility = View.GONE
                     binding.tvEstado.text = ""
+                    binding.tvEstado.visibility = View.GONE
                     binding.llAlertaDemora.visibility = View.GONE
 
                     binding.root.alpha = 1f
@@ -151,22 +152,29 @@ class ItemMesaAdapter(
                 EstadoMesa.OCUPADA -> {
                     binding.ivIconoMesa.setImageResource(R.drawable.ic_table_selected)
                     binding.tvIdMesa.setTextColor(Color.parseColor("#CACACA"))
-                    binding.tvCapacidad.text = if (mesa.numClientes > 0)
-                        "${mesa.numClientes}" else ""
-                    binding.tvCapacidadTexto.text = if (mesa.numClientes > 0) "Personas" else ""
+                    
+                    if (mesa.numClientes > 0) {
+                        binding.tvCapacidad.text = "${mesa.numClientes} Personas"
+                        binding.tvCapacidad.visibility = View.VISIBLE
+                    } else {
+                        binding.tvCapacidad.text = ""
+                        binding.tvCapacidad.visibility = View.GONE
+                    }
+                    
                     binding.tvEstado.text = "OCUPADA"
                     binding.tvEstado.setTextColor(Color.parseColor("#F5A623"))
+                    binding.tvEstado.visibility = View.VISIBLE
 
                     if (isDelayed) {
                         binding.llAlertaDemora.visibility = View.VISIBLE
-                        binding.ivAlertaDemora.setColorFilter(Color.parseColor("#E74C3C"))
+                        binding.ivAlertaDemora.setColorFilter(Color.parseColor("#C0392B"))
                         binding.tvTiempoEspera.text = "DEMORA: ${diffMin} min"
-                        binding.tvTiempoEspera.setTextColor(Color.parseColor("#E74C3C"))
+                        binding.tvTiempoEspera.setTextColor(Color.parseColor("#C0392B"))
                     } else if (isWarning) {
                         binding.llAlertaDemora.visibility = View.VISIBLE
-                        binding.ivAlertaDemora.setColorFilter(Color.parseColor("#F1C40F"))
+                        binding.ivAlertaDemora.setColorFilter(Color.parseColor("#D35400"))
                         binding.tvTiempoEspera.text = "ESPERA: ${diffMin} min"
-                        binding.tvTiempoEspera.setTextColor(Color.parseColor("#F1C40F"))
+                        binding.tvTiempoEspera.setTextColor(Color.parseColor("#D35400"))
                     } else {
                         binding.llAlertaDemora.visibility = View.GONE
                     }
@@ -177,8 +185,13 @@ class ItemMesaAdapter(
                 }
 
                 else -> {
-                    binding.tvEstado.setTextColor(Color.GRAY)
+                    binding.tvIdMesa.setTextColor(Color.GRAY)
                     binding.ivIconoMesa.setColorFilter(Color.GRAY)
+                    binding.tvCapacidad.text = ""
+                    binding.tvCapacidad.visibility = View.GONE
+                    binding.tvEstado.text = mesa.estado?.name ?: "INACTIVA"
+                    binding.tvEstado.setTextColor(Color.GRAY)
+                    binding.tvEstado.visibility = View.VISIBLE
                     binding.llAlertaDemora.visibility = View.GONE
                     binding.root.alpha = 0.5f
                     binding.root.isEnabled = false
