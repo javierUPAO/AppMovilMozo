@@ -118,7 +118,9 @@ class DetallePedidoActivity : AppCompatActivity() {
         cargarDetalles()
 
         btnDividir.setOnClickListener    { abrirDividirCuenta() }
+
         btnCobrar.setOnClickListener     { confirmarCobro() }
+
         btnTransferir.setOnClickListener { abrirTransferirMesa() }
         btnAgregarPlato.setOnClickListener {
             seleccionProductoLauncher.launch(
@@ -302,9 +304,11 @@ class DetallePedidoActivity : AppCompatActivity() {
         if (detalles.isEmpty()) {
             tvVacio.visibility    = View.VISIBLE
             rvDetalles.visibility = View.GONE
+            btnCobrar.visibility =  View.VISIBLE
             btnDividir.isEnabled  = false
-            btnCobrar.isEnabled   = false
+            btnCobrar.isEnabled   = true
         } else {
+            btnCobrar.visibility =  View.GONE
             tvVacio.visibility    = View.GONE
             rvDetalles.visibility = View.VISIBLE
             tvTotal.text          = "Total: ${moneyFormat.format(total)}"
@@ -467,7 +471,7 @@ class DetallePedidoActivity : AppCompatActivity() {
 
     private fun confirmarCobro() {
         MaterialAlertDialogBuilder(this)
-            .setTitle("Cerrar cuenta")
+            .setTitle("Cerrar cuenta - emergencia")
             .setMessage("¿Confirmar cobro y liberar Mesa $mesaId?")
             .setPositiveButton("Confirmar") { _, _ -> procesarCobro() }
             .setNegativeButton("Cancelar", null)

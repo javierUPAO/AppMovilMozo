@@ -162,7 +162,7 @@
                     android:layout_width="0dp"
                     android:layout_height="48dp"
                     android:layout_weight="1"
-                    android:text="Listo"
+                    android:text="Liberar - emergencia"
                     app:backgroundTint="@color/primary_color"
                 android:visibility="gone"/>
 
