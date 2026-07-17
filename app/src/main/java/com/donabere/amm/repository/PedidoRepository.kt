@@ -1477,6 +1477,18 @@ class PedidoRepository {
         }
     }
 
+    suspend fun transferirPedidoAMozo(pedidoId: String, mozoDestinoId: String): Result<Unit> {
+        return try {
+            pedidosRef.document(pedidoId)
+                .update("mozoId", mozoDestinoId)
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error transfiriendo pedido a mozo: \${e.message}")
+            Result.failure(e)
+        }
+    }
+
     private suspend fun validarStockPedido(pedidoId: String): String? {
             return try {
                 val cuentasSnapshot = pedidosRef

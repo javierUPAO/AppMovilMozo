@@ -19,6 +19,7 @@ import com.donabere.amm.model.enums.EstadoPedido
 import com.donabere.amm.repository.PedidoRepository
 import com.donabere.amm.ui.adapter.DetallePedidoReadOnlyAdapter
 import com.donabere.amm.ui.fragment.DialogAnulacionFragment
+import com.donabere.amm.ui.fragment.SeleccionarMozoDialog
 import com.donabere.amm.viewmodel.PedidoViewModel
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.chip.Chip
@@ -64,6 +65,7 @@ class DetallePedidoActivity : AppCompatActivity() {
     private lateinit var btnCobrar:          MaterialButton
     private lateinit var btnDividir:         MaterialButton
     private lateinit var btnTransferir:      MaterialButton
+    private lateinit var btnTransferirMozo:  MaterialButton
     private lateinit var btnAgregarPlato:    MaterialButton
     private lateinit var progressBar:        ProgressBar
     private lateinit var llCuentasDivididas: View
@@ -120,6 +122,7 @@ class DetallePedidoActivity : AppCompatActivity() {
         btnDividir.setOnClickListener    { abrirDividirCuenta() }
         btnCobrar.setOnClickListener     { confirmarCobro() }
         btnTransferir.setOnClickListener { abrirTransferirMesa() }
+        btnTransferirMozo.setOnClickListener { abrirTransferirMozo() }
         btnAgregarPlato.setOnClickListener {
             seleccionProductoLauncher.launch(
                 SeleccionProductoActivity.newIntent(this, mesaId)
@@ -172,6 +175,7 @@ class DetallePedidoActivity : AppCompatActivity() {
         btnCobrar          = findViewById(R.id.btn_cobrar)
         btnDividir         = findViewById(R.id.btn_dividir)
         btnTransferir      = findViewById(R.id.btn_transferir)
+        btnTransferirMozo  = findViewById(R.id.btn_transferir_mozo)
         btnAgregarPlato    = findViewById(R.id.btn_agregar_plato)
         progressBar        = findViewById(R.id.progress_bar)
         llCuentasDivididas = findViewById(R.id.ll_cuentas_divididas)
@@ -597,6 +601,53 @@ class DetallePedidoActivity : AppCompatActivity() {
                     mostrarSnackbar("Error inesperado: ${e.message}")
                 }
             }
+        }
+    }
+
+    // ── Transferencia Mozo ────────────────────────────────────────────────────
+
+    private fun abrirTransferirMozo() {
+        progressBar.visibility = View.VISIBLE
+        btnTransferirMozo.isEnabled = false
+
+        viewModel.obtenerMozosActivos { mozos ->
+            progressBar.visibility = View.GONE
+            btnTransferirMozo.isEnabled = true
+
+            if (mozos.isEmpty()) {
+                mostrarSnackbar("No hay otros mozos disponibles.")
+                return@obtenerMozosActivos
+            }
+
+            // Excluir al mozo actual si sabemos su ID, aunque actualmente se lista a todos
+            // Podríamos filtrar si tuviéramos el mozoId actual a nivel global
+            SeleccionarMozoDialog.newInstance(mozos) { mozoSeleccionado ->
+                confirmarTransferenciaMozo(mozoSeleccionado)
+            }.show(supportFragmentManager, "SeleccionarMozoDialog")
+        }
+    }
+
+    private fun confirmarTransferenciaMozo(mozoDestino: com.donabere.amm.model.Mozo) {
+        val totalFormateado = moneyFormat.format(detallesActuales.sumOf { it.subtotal })
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Confirmar Transferencia")
+            .setMessage("¿Transferir este pedido de $totalFormateado al mozo ${mozoDestino.name}?")
+            .setPositiveButton("Confirmar") { _, _ -> procesarTransferenciaMozo(mozoDestino.id) }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun procesarTransferenciaMozo(mozoDestinoId: String) {
+        progressBar.visibility = View.VISIBLE
+        btnTransferirMozo.isEnabled = false
+        btnTransferir.isEnabled = false
+        btnCobrar.isEnabled = false
+        btnDividir.isEnabled = false
+
+        viewModel.transferirPedidoAMozo(pedidoId, mozoDestinoId) {
+            progressBar.visibility = View.GONE
+            mostrarSnackbar("✅ Pedido transferido correctamente")
+            rvDetalles.postDelayed({ finish() }, 1000)
         }
     }
 
