@@ -193,6 +193,8 @@ class ProfileFragment : Fragment() {
         }
 
         profileViewModel.logoutEvent.observe(viewLifecycleOwner) {
+            // HU 5.1 · Detener la escucha de notificaciones al cerrar sesión.
+            com.donabere.amm.service.PedidoNotificacionesService.detener(requireContext())
             startActivity(Intent(requireContext(), LoginActivity::class.java))
             requireActivity().finish()
         }

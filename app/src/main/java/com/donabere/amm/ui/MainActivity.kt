@@ -1,10 +1,17 @@
 package com.donabere.amm.ui
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.donabere.amm.R
 import com.donabere.amm.databinding.ActivityMainBinding
+import com.donabere.amm.service.PedidoNotificacionesService
 import com.donabere.amm.ui.fragment.ListaPedidosFragment
 import com.donabere.amm.ui.fragment.MenuFragment
 import com.donabere.amm.ui.fragment.MesasFragment
@@ -13,6 +20,12 @@ import com.donabere.amm.ui.fragment.ProfileFragment
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+
+    // HU 5.1 · Al conceder (o denegar) el permiso, intentamos arrancar el servicio.
+    private val permisoNotifLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+            iniciarServicioNotificaciones()
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -23,6 +36,28 @@ class MainActivity : AppCompatActivity() {
         supportActionBar?.setDisplayShowTitleEnabled(false)
 
         setupBottomNavigation(savedInstanceState == null)
+        prepararNotificaciones()
+    }
+
+    // ─── HU 5.1 · Notificaciones de estado del pedido ─────────────────────────
+
+    private fun prepararNotificaciones() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            permisoNotifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            iniciarServicioNotificaciones()
+        }
+    }
+
+    private fun iniciarServicioNotificaciones() {
+        val mozoId = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+            .getString("mozoId", null)
+        if (!mozoId.isNullOrBlank()) {
+            PedidoNotificacionesService.iniciar(this, mozoId)
+        }
     }
 
     private fun setupBottomNavigation(selectDefault: Boolean) {
