@@ -280,7 +280,7 @@ class DetallePedidoActivity : AppCompatActivity() {
                         btnTransferirMozo.visibility = View.VISIBLE
                         btnTransferir.visibility     = View.VISIBLE
                         btnCobrar.visibility         = View.VISIBLE
-                        btnDividir.visibility        = View.VISIBLE
+                        btnDividir.visibility        = View.GONE
                     }
 
                     // Calcular y mostrar tiempo transcurrido si corresponde
@@ -333,9 +333,11 @@ class DetallePedidoActivity : AppCompatActivity() {
             rvDetalles.visibility = View.GONE
             btnCobrar.visibility =  View.VISIBLE
             btnDividir.isEnabled  = false
+            btnDividir.visibility = View.GONE
             btnCobrar.isEnabled   = true
         } else {
             btnCobrar.visibility =  View.GONE
+            btnDividir.visibility = View.GONE
             tvVacio.visibility    = View.GONE
             rvDetalles.visibility = View.VISIBLE
             tvTotal.text          = "Total: ${moneyFormat.format(total)}"
