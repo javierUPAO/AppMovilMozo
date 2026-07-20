@@ -30,4 +30,16 @@ class MozoRepository {
             Result.failure(e)
         }
     }
+
+    suspend fun obtenerTodosLosMozos(): Result<List<Mozo>> {
+        return try {
+            val snapshot = db.collection("mozo").get().await()
+            val mozos = snapshot.documents.mapNotNull { doc ->
+                doc.toObject(Mozo::class.java)?.copy(id = doc.id)
+            }
+            Result.success(mozos)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

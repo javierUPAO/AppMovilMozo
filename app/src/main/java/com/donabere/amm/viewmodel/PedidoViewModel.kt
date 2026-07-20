@@ -12,7 +12,9 @@ import kotlinx.coroutines.launch
 
 class PedidoViewModel(
     private val repository: PedidoRepository,
-    private val mozoId: String
+    private val mozoId: String,
+    private val mozoRepository: com.donabere.amm.repository.MozoRepository = com.donabere.amm.repository.MozoRepository(),
+    private val turnoRepository: com.donabere.amm.repository.TurnoRepository = com.donabere.amm.repository.TurnoRepository()
 ) : ViewModel() {
 
     // ─── Estado UI ────────────────────────────────────────────────────────────
@@ -294,16 +296,55 @@ class PedidoViewModel(
         }
     }
 
+    fun transferirPedidoAMozo(pedidoId: String, mozoDestinoId: String, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            _uiState.value = UiState.Loading
+            repository.transferirPedidoAMozo(pedidoId, mozoDestinoId).fold(
+                onSuccess = {
+                    _uiState.value = UiState.Success("Pedido transferido correctamente")
+                    onSuccess()
+                },
+                onFailure = { e ->
+                    _uiState.value = UiState.Error(e.message ?: "Error al transferir")
+                }
+            )
+        }
+    }
+
+    fun obtenerMozosActivos(onResult: (List<com.donabere.amm.model.Mozo>) -> Unit) {
+        viewModelScope.launch {
+            _uiState.value = UiState.Loading
+            try {
+                val mozosConTurno = turnoRepository.obtenerIdsDeMozosConTurnoAbierto()
+                
+                mozoRepository.obtenerTodosLosMozos().fold(
+                    onSuccess = { mozos ->
+                        _uiState.value = UiState.Idle
+                        val mozosActivos = mozos.filter { mozosConTurno.contains(it.id) }
+                        onResult(mozosActivos)
+                    },
+                    onFailure = { e ->
+                        _uiState.value = UiState.Error(e.message ?: "Error obteniendo mozos")
+                    }
+                )
+            } catch (e: Exception) {
+                _uiState.value = UiState.Error(e.message ?: "Error validando turnos")
+            }
+        }
+    }
+
     // ─── Factory ──────────────────────────────────────────────────────────────
 
     class Factory(
         private val repository: PedidoRepository,
-        private val mozoId: String = ""          // vacío cuando solo se edita
+        private val mozoId: String = "",          // vacío cuando solo se edita
+        private val mozoRepository: com.donabere.amm.repository.MozoRepository = com.donabere.amm.repository.MozoRepository(),
+        private val turnoRepository: com.donabere.amm.repository.TurnoRepository = com.donabere.amm.repository.TurnoRepository()
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             require(modelClass.isAssignableFrom(PedidoViewModel::class.java))
-            return PedidoViewModel(repository, mozoId) as T
+            return PedidoViewModel(repository, mozoId, mozoRepository, turnoRepository) as T
         }
     }
 }
