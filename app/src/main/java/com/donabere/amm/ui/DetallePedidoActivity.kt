@@ -77,6 +77,7 @@ class DetallePedidoActivity : AppCompatActivity() {
     private var cuentaIdPrincipal:       String = ""   // ID de la cuenta activa del pedido
     private var detallesActuales:        List<DetallePedido> = emptyList()
     private var estadoPedido:            EstadoPedido = EstadoPedido.PENDIENTE_PREPARACION
+    private var mozoIdActual:            String? = null
     private val modoEdicion get() =
         estadoPedido == EstadoPedido.COMANDADO ||
                 estadoPedido == EstadoPedido.PENDIENTE_PREPARACION
@@ -196,6 +197,7 @@ class DetallePedidoActivity : AppCompatActivity() {
                 // 1. Leer estado del pedido
                 val pedidoSnap = pedidosRef.document(pedidoId).get().await()
                 val estadoStr  = pedidoSnap.getString("estado") ?: ""
+                val mozoIdStr  = pedidoSnap.getString("mozoId")
                 val estado     = try {
                     EstadoPedido.valueOf(estadoStr)
                 } catch (e: Exception) {
@@ -257,6 +259,27 @@ class DetallePedidoActivity : AppCompatActivity() {
                     estadoPedido           = estado
                     cuentaIdPrincipal      = cuentaId
                     detallesActuales       = todosLosDetalles
+                    mozoIdActual           = mozoIdStr
+
+                    // Validar que solo el dueño del pedido pueda transferirlo
+                    val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                    val mozoLogueado = prefs.getString("mozoId", "")?.trim() ?: ""
+                    
+                    android.util.Log.d("DEBUG_TRANSFER", "mozoLogueado: '$mozoLogueado', mozoIdActual: '$mozoIdActual'")
+                    
+                    val esPropietario = mozoLogueado.isEmpty() || mozoLogueado == mozoIdActual
+                    
+                    if (!esPropietario) {
+                        btnTransferirMozo.visibility = View.GONE
+                        btnTransferir.visibility     = View.GONE
+                        btnCobrar.visibility         = View.GONE
+                        btnDividir.visibility        = View.GONE
+                    } else {
+                        btnTransferirMozo.visibility = View.VISIBLE
+                        btnTransferir.visibility     = View.VISIBLE
+                        btnCobrar.visibility         = View.VISIBLE
+                        btnDividir.visibility        = View.VISIBLE
+                    }
 
                     // Calcular y mostrar tiempo transcurrido si corresponde
                     if (ultimaAtencion != null && estado != EstadoPedido.PAGADO) {
@@ -614,14 +637,14 @@ class DetallePedidoActivity : AppCompatActivity() {
             progressBar.visibility = View.GONE
             btnTransferirMozo.isEnabled = true
 
-            if (mozos.isEmpty()) {
+            val mozosFiltrados = mozos.filter { it.id != mozoIdActual }
+
+            if (mozosFiltrados.isEmpty()) {
                 mostrarSnackbar("No hay otros mozos disponibles.")
                 return@obtenerMozosActivos
             }
 
-            // Excluir al mozo actual si sabemos su ID, aunque actualmente se lista a todos
-            // Podríamos filtrar si tuviéramos el mozoId actual a nivel global
-            SeleccionarMozoDialog.newInstance(mozos) { mozoSeleccionado ->
+            SeleccionarMozoDialog.newInstance(mozosFiltrados) { mozoSeleccionado ->
                 confirmarTransferenciaMozo(mozoSeleccionado)
             }.show(supportFragmentManager, "SeleccionarMozoDialog")
         }

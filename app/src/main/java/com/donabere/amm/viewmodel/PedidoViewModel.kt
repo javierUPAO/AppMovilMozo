@@ -13,7 +13,8 @@ import kotlinx.coroutines.launch
 class PedidoViewModel(
     private val repository: PedidoRepository,
     private val mozoId: String,
-    private val mozoRepository: com.donabere.amm.repository.MozoRepository = com.donabere.amm.repository.MozoRepository()
+    private val mozoRepository: com.donabere.amm.repository.MozoRepository = com.donabere.amm.repository.MozoRepository(),
+    private val turnoRepository: com.donabere.amm.repository.TurnoRepository = com.donabere.amm.repository.TurnoRepository()
 ) : ViewModel() {
 
     // ─── Estado UI ────────────────────────────────────────────────────────────
@@ -313,15 +314,22 @@ class PedidoViewModel(
     fun obtenerMozosActivos(onResult: (List<com.donabere.amm.model.Mozo>) -> Unit) {
         viewModelScope.launch {
             _uiState.value = UiState.Loading
-            mozoRepository.obtenerTodosLosMozos().fold(
-                onSuccess = { mozos ->
-                    _uiState.value = UiState.Idle
-                    onResult(mozos)
-                },
-                onFailure = { e ->
-                    _uiState.value = UiState.Error(e.message ?: "Error obteniendo mozos")
-                }
-            )
+            try {
+                val mozosConTurno = turnoRepository.obtenerIdsDeMozosConTurnoAbierto()
+                
+                mozoRepository.obtenerTodosLosMozos().fold(
+                    onSuccess = { mozos ->
+                        _uiState.value = UiState.Idle
+                        val mozosActivos = mozos.filter { mozosConTurno.contains(it.id) }
+                        onResult(mozosActivos)
+                    },
+                    onFailure = { e ->
+                        _uiState.value = UiState.Error(e.message ?: "Error obteniendo mozos")
+                    }
+                )
+            } catch (e: Exception) {
+                _uiState.value = UiState.Error(e.message ?: "Error validando turnos")
+            }
         }
     }
 
@@ -330,12 +338,13 @@ class PedidoViewModel(
     class Factory(
         private val repository: PedidoRepository,
         private val mozoId: String = "",          // vacío cuando solo se edita
-        private val mozoRepository: com.donabere.amm.repository.MozoRepository = com.donabere.amm.repository.MozoRepository()
+        private val mozoRepository: com.donabere.amm.repository.MozoRepository = com.donabere.amm.repository.MozoRepository(),
+        private val turnoRepository: com.donabere.amm.repository.TurnoRepository = com.donabere.amm.repository.TurnoRepository()
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             require(modelClass.isAssignableFrom(PedidoViewModel::class.java))
-            return PedidoViewModel(repository, mozoId, mozoRepository) as T
+            return PedidoViewModel(repository, mozoId, mozoRepository, turnoRepository) as T
         }
     }
 }

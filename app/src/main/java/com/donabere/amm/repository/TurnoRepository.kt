@@ -194,6 +194,14 @@ class TurnoRepository {
         }
     }
 
+    suspend fun obtenerIdsDeMozosConTurnoAbierto(): List<String> {
+        val snapshot = turnosRef
+            .whereEqualTo("estado", EstadoTurno.ABIERTO.name)
+            .get()
+            .await()
+        return snapshot.documents.mapNotNull { it.getString("mozoId") }
+    }
+
     suspend fun obtenerUltimoTurnoPorMozo(mozoId: String): Turno? {
 
         val snapshot = turnosRef
